@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-import requests, os, json, logging
+import requests, os, json, time, logging
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 app = FastAPI(title="Atende Med – Integração TENEX → MEDICAR")
@@ -145,7 +145,21 @@ async def webhook_clientes(request: Request):
         sexo = data.get("genero")
 
         try:
-            carteira = get_tenex_carteira(cpf)
+            # ====== NOVO TRECHO: 5 tentativas de 1 minuto ======
+            carteira = []
+            for tentativa in range(5):
+                carteira = get_tenex_carteira(cpf)
+                if carteira and carteira[0].get("planos_contratados"):
+                    log.info(f"Plano encontrado na tentativa {tentativa+1} para CPF {cpf}")
+                    break
+                log.warning(f"Tentativa {tentativa+1}/5: plano ainda não disponível para CPF {cpf}. Aguardando 60s...")
+                time.sleep(60)
+            # ====================================================
+
+            if not carteira or not carteira[0].get("planos_contratados"):
+                results.append({"cpf": cpf, "status": "ignorado", "motivo": "Nenhum plano encontrado após 5 tentativas"})
+                continue
+
             pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), carteira[0])
             id_plano = pessoa["planos_contratados"][0]["id_plano"]
             plano = PLAN_MAPPING_JSON.get(str(id_plano))
@@ -155,10 +169,11 @@ async def webhook_clientes(request: Request):
                 continue
 
             resp_medicar = incluir_beneficiario(token, tenantid, nome, cpf, data_nasc, sexo, plano)
+            log.info(f"✅ Cliente cadastrado com sucesso CPF={cpf}")
             results.append({"cpf": cpf, "status": "cadastrado", "resposta": resp_medicar})
 
         except Exception as e:
-            log.exception("Erro ao processar cliente %s", cpf)
+            log.exception("❌ Erro ao processar cliente %s", cpf)
             results.append({"cpf": cpf, "status": "erro", "erro": str(e)})
 
     return {"status": "ok", "resultados": results}
@@ -167,3 +182,4 @@ async def webhook_clientes(request: Request):
 @app.get("/health")
 def health():
     return {"status": "online", "servico": "TENEX → MEDICAR"}
+
