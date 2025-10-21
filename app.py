@@ -4,7 +4,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 app = FastAPI(title="Atende Med – Integração TENEX → MEDICAR")
 
-# Configuração básica de log
+# Configuração de logs
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("atendmed-api")
 
@@ -53,9 +53,25 @@ def get_tenex_carteira(cpf: str):
 
 def get_medicar_token():
     url = f"{MEDICAR_BASE_URL}/api/oauth2/v1/token"
-    params = {"grant_type": "password", "username": MEDICAR_USERNAME, "password": MEDICAR_PASSWORD}
-    resp = request_retry("POST", url, params=params, headers={"Content-Type": "application/json"})
-    return resp.json()["access_token"]
+    payload = {
+        "grant_type": "password",
+        "username": MEDICAR_USERNAME,
+        "password": MEDICAR_PASSWORD
+    }
+    headers = {"Content-Type": "application/json"}
+    resp = request_retry("POST", url, headers=headers, json=payload)
+
+    if resp.status_code != 200:
+        log.error(f"Falha ao obter token (HTTP {resp.status_code}): {resp.text}")
+        resp.raise_for_status()
+
+    token_data = resp.json()
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise ValueError(f"Resposta inválida ao obter token: {token_data}")
+
+    log.info("✅ Token da Medicar obtido com sucesso.")
+    return access_token
 
 def get_medicar_contract(token: str, cpf: str = None):
     url = f"{MEDICAR_BASE_URL}/client/v1/contract"
@@ -127,12 +143,16 @@ def incluir_beneficiario(token: str, tenantid: str, nome: str, cpf: str, data_na
 @app.post("/webhook/clientes")
 async def webhook_clientes(request: Request):
     body = await request.json()
-    log.info("Webhook recebido: %s", body)
+    log.info(f"Webhook recebido: {body}")
     results = []
 
-    token = get_medicar_token()
-    contract = get_medicar_contract(token)
-    tenantid = contract.get("tenantid")
+    try:
+        token = get_medicar_token()
+        contract = get_medicar_contract(token)
+        tenantid = contract.get("tenantid")
+    except Exception as e:
+        log.exception("❌ Erro ao autenticar na Medicar")
+        return {"status": "erro", "mensagem": f"Falha na autenticação com a Medicar: {e}"}
 
     for item in body:
         data = item.get("data", {})
@@ -145,7 +165,7 @@ async def webhook_clientes(request: Request):
         sexo = data.get("genero")
 
         try:
-            # ====== NOVO TRECHO: 5 tentativas de 1 minuto ======
+            # Tenta buscar plano 5x com delay de 1 min
             carteira = []
             for tentativa in range(5):
                 carteira = get_tenex_carteira(cpf)
@@ -154,7 +174,6 @@ async def webhook_clientes(request: Request):
                     break
                 log.warning(f"Tentativa {tentativa+1}/5: plano ainda não disponível para CPF {cpf}. Aguardando 60s...")
                 time.sleep(60)
-            # ====================================================
 
             if not carteira or not carteira[0].get("planos_contratados"):
                 results.append({"cpf": cpf, "status": "ignorado", "motivo": "Nenhum plano encontrado após 5 tentativas"})
@@ -173,7 +192,7 @@ async def webhook_clientes(request: Request):
             results.append({"cpf": cpf, "status": "cadastrado", "resposta": resp_medicar})
 
         except Exception as e:
-            log.exception("❌ Erro ao processar cliente %s", cpf)
+            log.exception(f"❌ Erro ao processar cliente {cpf}")
             results.append({"cpf": cpf, "status": "erro", "erro": str(e)})
 
     return {"status": "ok", "resultados": results}
@@ -182,4 +201,3 @@ async def webhook_clientes(request: Request):
 @app.get("/health")
 def health():
     return {"status": "online", "servico": "TENEX → MEDICAR"}
-
