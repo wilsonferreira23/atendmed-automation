@@ -78,28 +78,31 @@ async def tenex_get_carteira(cpf: str):
 # ============================================================
 
 async def medicar_get_token():
-    # cache
     if _token_cache["token"] and datetime.now() < _token_cache["expiry"]:
         return _token_cache["token"]
 
     url = f"{MEDICAR_BASE_URL}/api/oauth2/v1/token"
-    params = {"grant_type": "password", "username": MEDICAR_USERNAME, "password": MEDICAR_PASSWORD}
-    headers = {"Content-Type": "application/json"}
-    json_body = {"name": "API-Integration-Client"}  # compat c/ exemplo funcional
-    resp = await httpx_retry("POST", url, params=params, json=json_body, headers=headers)
+    params = {
+        "grant_type": "password",
+        "username": MEDICAR_USERNAME,
+        "password": MEDICAR_PASSWORD
+    }
+
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        resp = await client.post(url, params=params)  # ❌ sem JSON body
+        resp.raise_for_status()
 
     data = resp.json()
     token = data.get("access_token")
     if not token:
         raise RuntimeError(f"Token inválido: {data}")
 
-    # expiração (menos 60s de margem)
     ttl = int(data.get("expires_in", 3600)) - 60
     _token_cache["token"] = token
     _token_cache["expiry"] = datetime.now() + timedelta(seconds=max(ttl, 60))
-
     log.info("✅ Token da Medicar obtido com sucesso.")
     return token
+
 
 async def medicar_get_contract(token: str, cpf: str | None = None):
     url = f"{MEDICAR_BASE_URL}/client/v1/contract"
