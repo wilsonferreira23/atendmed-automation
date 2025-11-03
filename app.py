@@ -182,7 +182,7 @@ class PessoaTeste(BaseModel):
     cpf: str                       # pode vir com ou sem pontuação
     data_nascimento: str           # AAAAMMDD ou AAAA-MM-DD (ambos aceitos)
     sexo: str                      # "1" masc, "2" fem
-    nome_mae: str = "Maria josé"
+    nome_mae: str = "Raquel Luciana Mariana"
     estado_civil_cod: str = "S"    # Solteiro (padrão)
     codpro: str | None = None      # opcional: sobrescrever plano
     versao: str | None = None      # opcional: sobrescrever versão
