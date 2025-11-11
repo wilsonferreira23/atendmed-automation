@@ -237,14 +237,11 @@ async def webhook_clientes(request: Request):
         if not data:
             continue
 
-        nome = data.get("nome")
         cpf = data.get("cpf")
-        data_nasc = data.get("data_nascimento")
-        sexo = data.get("genero")
         id_cliente = data.get("id")
 
         try:
-            # === 1️⃣ Buscar plano do titular (com tentativas e delay) ===
+            # === 1️⃣ Buscar plano do titular (5 tentativas com delay de 60s) ===
             carteira = None
             for tentativa in range(5):
                 carteira = await tenex_get_carteira(cpf)
@@ -255,7 +252,6 @@ async def webhook_clientes(request: Request):
                 log.warning(f"Tentativa {tentativa+1}/5: plano não disponível para CPF {cpf}. Aguardando 60 s...")
                 await asyncio.sleep(60)
 
-            # se ainda não tiver plano, ignora o cliente
             first = carteira[0] if isinstance(carteira, list) and carteira else None
             if not first or not first.get("planos_contratados"):
                 results.append({
@@ -268,55 +264,65 @@ async def webhook_clientes(request: Request):
             pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), first)
             id_plano = pessoa["planos_contratados"][0]["id_plano"]
             plano = PLAN_MAPPING_JSON.get(str(id_plano))
-
             if not plano:
                 log.warning(f"Plano {id_plano} não mapeado — ignorando CPF {cpf}")
                 results.append({"cpf": cpf, "status": "ignorado", "motivo": f"plano {id_plano} não mapeado"})
                 continue
 
-            # === 2️⃣ Só depois: buscar dependentes do cliente ===
+            # === 2️⃣ Só depois: buscar cliente + contatos (titular + dependentes) ===
             url_clientes = f"{TENEX_BASE_URL}/api/v2/clientes/?id={id_cliente}&_expand=contatos"
             headers = {"Authorization": f"Basic {TENEX_BASIC_AUTH}"}
             resp = await httpx_retry("GET", url_clientes, headers=headers)
-            data_cliente = resp.json().get("data", [])[0] if resp.json().get("data") else None
+            resp_json = resp.json()
 
-            dependentes = []
+            if isinstance(resp_json, dict):
+                data_list = resp_json.get("data") or []
+            else:
+                data_list = resp_json or []
+
+            data_cliente = data_list[0] if data_list else None
+
+            # construir titular e dependentes
+            titular_dict = {
+                "nome": only_ascii_upper(data.get("nome")),
+                "cpf": only_digits(data.get("cpf")),
+                "data_nascimento": (data.get("data_nascimento") or "").replace("-", ""),
+                "sexo": str(data.get("genero") or "2"),
+                "nome_mae": "NOME MAE NAO INFORMADO",
+            }
+
+            dependentes_dicts = []
             if data_cliente and "contatos" in data_cliente:
-                dependentes = [
-                    dep for dep in data_cliente["contatos"]
-                    if str(dep.get("principal")) == "0" and dep.get("cpf")
-                ]
+                for dep in data_cliente["contatos"]:
+                    if str(dep.get("principal")) == "0" and dep.get("cpf"):
+                        dependentes_dicts.append({
+                            "nome": only_ascii_upper(dep.get("nome") or ""),
+                            "cpf": only_digits(dep.get("cpf") or ""),
+                            "data_nascimento": (dep.get("data_nascimento") or "").replace("-", ""),
+                            "sexo": str(dep.get("genero") or "2"),
+                            "nome_mae": "NOME MAE NAO INFORMADO",
+                        })
 
+            # validações mínimas do titular
+            if not titular_dict["nome"] or not titular_dict["cpf"]:
+                results.append({"cpf": cpf, "status": "erro", "erro": "Titular sem nome/CPF válido"})
+                continue
 
-            # === 3️⃣ Formatar data ===
-            dn_fmt = data_nasc if (data_nasc and len(data_nasc) == 8 and data_nasc.isdigit()) else (data_nasc or "").replace("-", "")
-
-            # === 4️⃣ Montar payload Medicar ===
-            resp_medicar = await medicar_incluir_beneficiario(
+            # === 3️⃣ Enviar família (titular + dependentes) para a Medicar ===
+            resp_medicar = await medicar_incluir_familia(
                 token=token,
                 tenantid=tenantid,
-                nome=nome,
-                cpf=cpf,
-                data_nasc_iso=dn_fmt,
-                sexo_int=int(sexo) if sexo is not None else 1,
+                titular=titular_dict,
+                dependentes=dependentes_dicts,
                 plano=plano,
                 contract_fields=contract_fields,
-                nome_mae="NOME MAE NAO INFORMADO",
             )
 
-            log.info(f"✅ Cliente {cpf} cadastrado na Medicar com sucesso")
-            results.append({"cpf": cpf, "status": "cadastrado", "resposta": resp_medicar})
+            log.info(f"✅ Família incluída: titular CPF={titular_dict['cpf']} (+{len(dependentes_dicts)} dep.)")
+            results.append({"cpf": titular_dict["cpf"], "status": "cadastrado", "resposta": resp_medicar})
 
         except Exception as e:
             log.exception(f"Erro ao processar cliente {cpf}")
             results.append({"cpf": cpf, "status": "erro", "erro": str(e)})
 
     return {"status": "ok", "resultados": results}
-
-
-# ============================================================
-# HEALTHCHECK
-# ============================================================
-@app.get("/health")
-async def health():
-    return {"status": "online", "servico": "TENEX → MEDICAR (async)"}
