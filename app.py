@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("atendmed-api")
 
 # ============================================================
-# UTIL/FUNÇÕES AUXILIARES
+# UTIL
 # ============================================================
 def only_digits(s: str) -> str:
     return re.sub(r"\D", "", s or "")
@@ -21,10 +21,13 @@ def only_digits(s: str) -> str:
 def only_ascii_upper(s: str) -> str:
     return (s or "").encode("ascii", errors="ignore").decode().upper().strip()
 
+# ============================================================
+# CONFIG
+# ============================================================
 TENEX_BASE_URL = os.getenv("TENEX_BASE_URL", "https://maisaudebh.tenex.com.br").rstrip("/")
 TENEX_BASIC_AUTH = os.getenv("TENEX_BASIC_AUTH")
 
-MEDICAR_BASE_URL = os.getenv("MEDICAR_BASE_URL", "").rstrip("/")   # ex.: .../rest
+MEDICAR_BASE_URL = os.getenv("MEDICAR_BASE_URL", "").rstrip("/")
 MEDICAR_USERNAME = os.getenv("MEDICAR_USERNAME")
 MEDICAR_PASSWORD = os.getenv("MEDICAR_PASSWORD")
 
@@ -32,13 +35,10 @@ MEDICAR_CNPJMEDICAR = only_digits(os.getenv("MEDICAR_CNPJMEDICAR", ""))
 MEDICAR_GRUPOEMPRESA = os.getenv("MEDICAR_GRUPOEMPRESA")
 MEDICAR_CONTRATO = os.getenv("MEDICAR_CONTRATO")
 
-TENANT_ID = os.getenv("TENANT_ID")  # ex.: "01,006001"
+TENANT_ID = os.getenv("TENANT_ID")
 
-# Opcional: definir campos do contrato via ENV (recomendado)
-# {"BBA_CODINT":"1001","BBA_CODEMP":"0004","BBA_CONEMP":"000000000002","BBA_VERCON":"001","BBA_SUBCON":"002326875","BBA_VERSUB":"001"}
 MEDICAR_CONTRACT_FIELDS_JSON = os.getenv("MEDICAR_CONTRACT_FIELDS_JSON", "")
 
-# Mapeamento de id_plano (Tenex) → codpro/versao (Medicar)
 PLAN_MAPPING_JSON = json.loads(os.getenv(
     "PLAN_MAPPING_JSON",
     '{"34":{"codpro":"0066","versao":"001"},"35":{"codpro":"0066","versao":"001"}}'
@@ -48,7 +48,7 @@ HTTP_TIMEOUT = 25.0
 _token_cache = {"token": None, "expiry": datetime.min}
 
 # ============================================================
-# HTTP (httpx) c/ retry simples
+# HTTP RETRY
 # ============================================================
 async def httpx_retry(method: str, url: str, **kwargs) -> httpx.Response:
     tries, delay = 3, 1.0
@@ -74,11 +74,21 @@ async def tenex_get_carteira(cpf: str):
     resp = await httpx_retry("GET", url, headers=headers)
     return resp.json()
 
+async def tenex_get_cliente_com_contatos(cliente_id: int):
+    url = f"{TENEX_BASE_URL}/api/v2/clientes/?id={cliente_id}&_expand=contatos"
+    headers = {"Authorization": f"Basic {TENEX_BASIC_AUTH}"}
+    resp = await httpx_retry("GET", url, headers=headers)
+    data = resp.json()
+    if isinstance(data, dict) and "data" in data:
+        items = data["data"]
+    else:
+        items = data
+    return items[0] if items else None
+
 # ============================================================
-# MEDICAR – TOKEN, CONTRATO, INCLUSÃO
+# MEDICAR – TOKEN, CONTRATO, INCLUSÃO FAMÍLIA
 # ============================================================
 async def medicar_get_token():
-    # cache
     if _token_cache["token"] and datetime.now() < _token_cache["expiry"]:
         return _token_cache["token"]
 
@@ -86,7 +96,7 @@ async def medicar_get_token():
     params = {"grant_type": "password", "username": MEDICAR_USERNAME, "password": MEDICAR_PASSWORD}
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-        resp = await client.post(url, params=params)  # sem body
+        resp = await client.post(url, params=params)
         resp.raise_for_status()
 
     data = resp.json()
@@ -97,57 +107,37 @@ async def medicar_get_token():
     ttl = int(data.get("expires_in", 3600)) - 60
     _token_cache["token"] = token
     _token_cache["expiry"] = datetime.now() + timedelta(seconds=max(ttl, 60))
-
-    log.info("✅ Token da Medicar obtido com sucesso.")
+    log.info("✅ Token Medicar obtido com sucesso.")
     return token
 
-async def medicar_get_contract(token: str, cpf: str | None = None):
+async def medicar_get_contract(token: str):
     url = f"{MEDICAR_BASE_URL}/client/v1/contract"
     headers = {"Authorization": f"Bearer {token}"}
     params = {"cnpjmedicar": MEDICAR_CNPJMEDICAR, "grupoempresa": MEDICAR_GRUPOEMPRESA, "contrato": MEDICAR_CONTRATO}
-    if cpf:
-        params["cgcbeneficiario"] = only_digits(cpf)
     resp = await httpx_retry("GET", url, headers=headers, params=params)
     return resp.json()
 
-async def medicar_incluir_beneficiario(
-    token: str,
-    tenantid: str,
-    nome: str,
-    cpf: str,
-    data_nasc_iso: str,
-    sexo_int: int,
-    plano: dict,
-    contract_fields: dict | None = None,
-    nome_mae: str | None = None,
-):
+async def medicar_incluir_familia(token, tenantid, titular, dependentes, plano, contract_fields=None):
     url = f"{MEDICAR_BASE_URL}/fwmodel/PLIncBenModel/"
     params = {"tenantId": tenantid}
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-    # normalizações
-    dt_nasc = (data_nasc_iso or "").replace("-", "")
-    sexo_valor = "1" if str(sexo_int) == "1" else "2"
-    nome_mae_valido = only_ascii_upper(nome_mae or "").strip() or "NOME MAE NAO INFORMADO"
-    nome_ascii = only_ascii_upper(nome)
+    def fmt_dn(v): return v.replace("-", "") if v else ""
+    def sexo_valor(v): return "1" if str(v) == "1" else "2"
+    def mae_ok(v): return only_ascii_upper(v or "NOME MAE NAO INFORMADO")
 
-    # MASTERBBA: usar ENV se presente; senão, defaults compatíveis com seu ambiente
     master_defaults = {
-        "BBA_CODINT": "1001",
-        "BBA_CODEMP": "0004",
-        "BBA_CONEMP": "000000000002",
-        "BBA_VERCON": "001",
-        "BBA_SUBCON": "002326875",
-        "BBA_VERSUB": "001",
+        "BBA_CODINT": "1001", "BBA_CODEMP": "0004", "BBA_CONEMP": "000000000002",
+        "BBA_VERCON": "001", "BBA_SUBCON": "002326875", "BBA_VERSUB": "001",
     }
-    env_contract = {}
-    if contract_fields:
-        for k in master_defaults.keys():
-            v = contract_fields.get(k)
-            if v:
-                env_contract[k] = str(v)
-
+    env_contract = {k: contract_fields.get(k) for k in master_defaults if contract_fields and contract_fields.get(k)}
     base_contract = env_contract if env_contract else master_defaults
+
+    nome_tit = only_ascii_upper(titular.get("nome"))
+    cpf_tit = only_digits(titular.get("cpf"))
+    dn_tit = fmt_dn(titular.get("data_nascimento"))
+    sx_tit = sexo_valor(titular.get("sexo"))
+    mae_tit = mae_ok(titular.get("nome_mae"))
 
     master_bba_fields = [
         {"id": "BBA_CODINT", "order": 1, "value": base_contract["BBA_CODINT"]},
@@ -156,105 +146,66 @@ async def medicar_incluir_beneficiario(
         {"id": "BBA_VERCON", "order": 4, "value": base_contract["BBA_VERCON"]},
         {"id": "BBA_SUBCON", "order": 5, "value": base_contract["BBA_SUBCON"]},
         {"id": "BBA_VERSUB", "order": 6, "value": base_contract["BBA_VERSUB"]},
-        {"id": "BBA_EMPBEN", "order": 7, "value": nome_ascii},
+        {"id": "BBA_EMPBEN", "order": 7, "value": nome_tit},
         {"id": "BBA_CODPRO", "order": 8, "value": plano["codpro"]},
         {"id": "BBA_VERSAO", "order": 9, "value": plano["versao"]},
-        {"id": "BBA_CPFTIT", "order": 10, "value": only_digits(cpf)},
+        {"id": "BBA_CPFTIT", "order": 10, "value": cpf_tit},
     ]
 
-    detail_b2n_items = [{
-        "id": 1,
-        "deleted": 0,
-        "fields": [
-            {"id": "B2N_NOMUSR", "value": nome_ascii},
-            {"id": "B2N_DATNAS", "value": dt_nasc},
-            {"id": "B2N_GRAUPA", "value": "00"},          # Titular
-            {"id": "B2N_ESTCIV", "value": "S"},           # Solteiro (ajuste se necessário)
-            {"id": "B2N_SEXO", "value": sexo_valor},
-            {"id": "B2N_CPFUSR", "value": only_digits(cpf)},
-            {"id": "B2N_MAE", "value": nome_mae_valido},
+    items = [{
+        "id": 1, "deleted": 0, "fields": [
+            {"id": "B2N_NOMUSR", "value": nome_tit},
+            {"id": "B2N_DATNAS", "value": dn_tit},
+            {"id": "B2N_GRAUPA", "value": "00"},
+            {"id": "B2N_ESTCIV", "value": "S"},
+            {"id": "B2N_SEXO", "value": sx_tit},
+            {"id": "B2N_CPFUSR", "value": cpf_tit},
+            {"id": "B2N_MAE", "value": mae_tit},
             {"id": "B2N_CODPRO", "value": plano["codpro"]},
         ]
     }]
 
+    for i, dep in enumerate(dependentes, start=2):
+        nome = only_ascii_upper(dep.get("nome"))
+        cpf = only_digits(dep.get("cpf"))
+        dn = fmt_dn(dep.get("data_nascimento"))
+        sx = sexo_valor(dep.get("sexo"))
+        mae = mae_ok(dep.get("nome_mae"))
+        if not nome or not cpf:
+            continue
+        items.append({
+            "id": i, "deleted": 0, "fields": [
+                {"id": "B2N_NOMUSR", "value": nome},
+                {"id": "B2N_DATNAS", "value": dn},
+                {"id": "B2N_GRAUPA", "value": "11"},
+                {"id": "B2N_ESTCIV", "value": "S"},
+                {"id": "B2N_SEXO", "value": sx},
+                {"id": "B2N_CPFUSR", "value": cpf},
+                {"id": "B2N_MAE", "value": mae},
+            ]
+        })
+
     payload = {
         "id": "PLIncBenModel",
-        "operation": 3,  # Inclusão
-        "models": [
-            {
-                "id": "MASTERBBA",
-                "modeltype": "FIELDS",
-                "fields": master_bba_fields,
-                "models": [
-                    {"id": "DETAILB2N", "modeltype": "GRID", "items": detail_b2n_items},
-                    {"id": "DETAILANEXO", "modeltype": "GRID", "items": [{"id": 1, "deleted": 0, "fields": []}]},
-                ],
-            }
-        ],
+        "operation": 3,
+        "models": [{
+            "id": "MASTERBBA",
+            "modeltype": "FIELDS",
+            "fields": master_bba_fields,
+            "models": [
+                {"id": "DETAILB2N", "modeltype": "GRID", "items": items},
+                {"id": "DETAILANEXO", "modeltype": "GRID", "items": [{"id": 1, "deleted": 0, "fields": []}]},
+            ],
+        }],
     }
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
         resp = await client.post(url, params=params, headers=headers, json=payload)
-        if resp.status_code >= 400:
-            raise httpx.HTTPStatusError(f"Erro {resp.status_code}: {resp.text}", request=resp.request, response=resp)
+        resp.raise_for_status()
         return resp.json()
 
 # ============================================================
-# MODELO PARA TESTE MANUAL
-# ============================================================
-class PessoaTeste(BaseModel):
-    nome: str
-    cpf: str
-    data_nascimento: str           # "AAAA-MM-DD" ou "AAAAMMDD"
-    sexo: str                      # "1" masc / "2" fem
-    nome_mae: str = "NOME MAE NAO INFORMADO"
-    estado_civil_cod: str = "S"
-    codpro: str | None = None
-    versao: str | None = None
-
-# ============================================================
-# ENDPOINT DE TESTE (sem Tenex)
-# ============================================================
-@app.post("/teste-medicar")
-async def teste_medicar(pessoa: PessoaTeste):
-    try:
-        token = await medicar_get_token()
-
-        tenantid = TENANT_ID
-        if not tenantid:
-            contr = await medicar_get_contract(token)
-            tenantid = contr.get("tenantid")
-            if not tenantid:
-                raise RuntimeError("tenantId não identificado (defina TENANT_ID ou confirme via /client/v1/contract).")
-
-        contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
-
-        plano = {"codpro": pessoa.codpro or "0066", "versao": pessoa.versao or "001"}
-
-        dn = pessoa.data_nascimento
-        dn_fmt = dn if (dn and len(dn) == 8 and dn.isdigit()) else (dn or "").replace("-", "")
-
-        resp_medicar = await medicar_incluir_beneficiario(
-            token=token,
-            tenantid=tenantid,
-            nome=pessoa.nome,
-            cpf=pessoa.cpf,
-            data_nasc_iso=dn_fmt,
-            sexo_int=int(pessoa.sexo),
-            plano=plano,
-            contract_fields=contract_fields,
-            nome_mae=pessoa.nome_mae,
-        )
-        return {"status": "ok", "mensagem": f"Beneficiário {pessoa.nome} enviado com sucesso!", "resposta": resp_medicar}
-
-    except httpx.HTTPStatusError as e:
-        return {"status": "erro", "detalhe": e.response.text}
-    except Exception as e:
-        log.exception("Erro no /teste-medicar")
-        return {"status": "erro", "detalhe": str(e)}
-
-# ============================================================
-# ENDPOINT PRINCIPAL (Webhook da Tenex)
+# ENDPOINT PRINCIPAL
 # ============================================================
 @app.post("/webhook/clientes")
 async def webhook_clientes(request: Request):
@@ -279,8 +230,8 @@ async def webhook_clientes(request: Request):
             log.warning(f"Não foi possível obter contrato padrão: {e}")
 
     contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
-
     results = []
+
     for item in items:
         data = item.get("data", {}) if isinstance(item, dict) else {}
         if not data:
@@ -290,9 +241,10 @@ async def webhook_clientes(request: Request):
         cpf = data.get("cpf")
         data_nasc = data.get("data_nascimento")
         sexo = data.get("genero")
+        id_cliente = data.get("id")
 
         try:
-            # aguarda plano: 5 tentativas, 1 min entre elas
+            # === 1️⃣ Buscar plano do titular (com tentativas e delay) ===
             carteira = None
             for tentativa in range(5):
                 carteira = await tenex_get_carteira(cpf)
@@ -300,23 +252,46 @@ async def webhook_clientes(request: Request):
                 if first and first.get("planos_contratados"):
                     log.info(f"Plano encontrado na tentativa {tentativa+1} para CPF {cpf}")
                     break
-                log.warning(f"Tentativa {tentativa+1}/5: plano não disponível para CPF {cpf}. Aguardando 60s...")
+                log.warning(f"Tentativa {tentativa+1}/5: plano não disponível para CPF {cpf}. Aguardando 60 s...")
                 await asyncio.sleep(60)
 
+            # se ainda não tiver plano, ignora o cliente
             first = carteira[0] if isinstance(carteira, list) and carteira else None
             if not first or not first.get("planos_contratados"):
-                results.append({"cpf": cpf, "status": "ignorado", "motivo": "Nenhum plano encontrado após 5 tentativas"})
+                results.append({
+                    "cpf": cpf,
+                    "status": "ignorado",
+                    "motivo": "Nenhum plano encontrado após 5 tentativas"
+                })
                 continue
 
-            pessoa = next((p for p in carteira if only_digits(p.get("cpf","")) == only_digits(cpf)), first)
+            pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), first)
             id_plano = pessoa["planos_contratados"][0]["id_plano"]
             plano = PLAN_MAPPING_JSON.get(str(id_plano))
+
             if not plano:
+                log.warning(f"Plano {id_plano} não mapeado — ignorando CPF {cpf}")
                 results.append({"cpf": cpf, "status": "ignorado", "motivo": f"plano {id_plano} não mapeado"})
                 continue
 
+            # === 2️⃣ Só depois: buscar dependentes do cliente ===
+            url_clientes = f"{TENEX_BASE_URL}/api/v2/clientes/?id={id_cliente}&_expand=contatos"
+            headers = {"Authorization": f"Basic {TENEX_BASIC_AUTH}"}
+            resp = await httpx_retry("GET", url_clientes, headers=headers)
+            data_cliente = resp.json().get("data", [])[0] if resp.json().get("data") else None
+
+            dependentes = []
+            if data_cliente and "contatos" in data_cliente:
+                dependentes = [
+                    dep for dep in data_cliente["contatos"]
+                    if str(dep.get("principal")) == "0" and dep.get("cpf")
+                ]
+
+
+            # === 3️⃣ Formatar data ===
             dn_fmt = data_nasc if (data_nasc and len(data_nasc) == 8 and data_nasc.isdigit()) else (data_nasc or "").replace("-", "")
 
+            # === 4️⃣ Montar payload Medicar ===
             resp_medicar = await medicar_incluir_beneficiario(
                 token=token,
                 tenantid=tenantid,
@@ -326,9 +301,10 @@ async def webhook_clientes(request: Request):
                 sexo_int=int(sexo) if sexo is not None else 1,
                 plano=plano,
                 contract_fields=contract_fields,
-                nome_mae="NOME MAE NAO INFORMADO",  # Tenex não envia mãe; evita rejeição
+                nome_mae="NOME MAE NAO INFORMADO",
             )
-            log.info(f"✅ Cliente cadastrado com sucesso CPF={cpf}")
+
+            log.info(f"✅ Cliente {cpf} cadastrado na Medicar com sucesso")
             results.append({"cpf": cpf, "status": "cadastrado", "resposta": resp_medicar})
 
         except Exception as e:
@@ -337,11 +313,10 @@ async def webhook_clientes(request: Request):
 
     return {"status": "ok", "resultados": results}
 
+
 # ============================================================
 # HEALTHCHECK
 # ============================================================
 @app.get("/health")
 async def health():
     return {"status": "online", "servico": "TENEX → MEDICAR (async)"}
-
-
