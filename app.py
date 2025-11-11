@@ -269,39 +269,32 @@ async def webhook_clientes(request: Request):
                 results.append({"cpf": cpf, "status": "ignorado", "motivo": f"plano {id_plano} não mapeado"})
                 continue
 
-            # === 2️⃣ Só depois: buscar cliente + contatos (titular + dependentes) ===
-            url_clientes = f"{TENEX_BASE_URL}/api/v2/clientes/?id={id_cliente}&_expand=contatos"
-            headers = {"Authorization": f"Basic {TENEX_BASIC_AUTH}"}
-            resp = await httpx_retry("GET", url_clientes, headers=headers)
-            resp_json = resp.json()
+            # === 2️⃣ Buscar cliente + contatos (titular + dependentes) ===
+            cliente_expand = await tenex_get_cliente_com_contatos(id_cliente)
+            contatos = (cliente_expand or {}).get("contatos", []) if cliente_expand else []
 
-            if isinstance(resp_json, dict):
-                data_list = resp_json.get("data") or []
-            else:
-                data_list = resp_json or []
-
-            data_cliente = data_list[0] if data_list else None
-
-            # construir titular e dependentes
+            # titular: usa contatos[principal=1]; se não houver, usa o próprio data do webhook
+            tit = next((c for c in contatos if str(c.get("principal")) == "1"), None)
             titular_dict = {
-                "nome": only_ascii_upper(data.get("nome")),
-                "cpf": only_digits(data.get("cpf")),
-                "data_nascimento": (data.get("data_nascimento") or "").replace("-", ""),
-                "sexo": str(data.get("genero") or "2"),
+                "nome": only_ascii_upper((tit or data).get("nome") or ""),
+                "cpf": only_digits((tit or data).get("cpf") or ""),
+                "data_nascimento": ( (tit or data).get("data_nascimento") or "" ).replace("-", ""),
+                "sexo": str((tit or data).get("genero") or "2"),
                 "nome_mae": "NOME MAE NAO INFORMADO",
             }
 
+            # dependentes
             dependentes_dicts = []
-            if data_cliente and "contatos" in data_cliente:
-                for dep in data_cliente["contatos"]:
-                    if str(dep.get("principal")) == "0" and dep.get("cpf"):
-                        dependentes_dicts.append({
-                            "nome": only_ascii_upper(dep.get("nome") or ""),
-                            "cpf": only_digits(dep.get("cpf") or ""),
-                            "data_nascimento": (dep.get("data_nascimento") or "").replace("-", ""),
-                            "sexo": str(dep.get("genero") or "2"),
-                            "nome_mae": "NOME MAE NAO INFORMADO",
-                        })
+            for dep in contatos:
+                if str(dep.get("principal")) != "0" or not dep.get("cpf"):
+                    continue
+                dependentes_dicts.append({
+                    "nome": only_ascii_upper(dep.get("nome") or ""),
+                    "cpf": only_digits(dep.get("cpf") or ""),
+                    "data_nascimento": (dep.get("data_nascimento") or "").replace("-", ""),
+                    "sexo": str(dep.get("genero") or "2"),
+                    "nome_mae": "NOME MAE NAO INFORMADO",
+                })
 
             # validações mínimas do titular
             if not titular_dict["nome"] or not titular_dict["cpf"]:
@@ -326,3 +319,9 @@ async def webhook_clientes(request: Request):
             results.append({"cpf": cpf, "status": "erro", "erro": str(e)})
 
     return {"status": "ok", "resultados": results}
+
+@app.get("/health")
+async def health():
+    return {"status": "online", "servico": "TENEX → MEDICAR (async)"}
+
+
