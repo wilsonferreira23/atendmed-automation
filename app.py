@@ -205,36 +205,60 @@ async def medicar_incluir_familia(token, tenantid, titular, dependentes, plano, 
         return resp.json()
 
 # ============================================================
-# MEDICAR – EXCLUSÃO DE FAMÍLIA
+# MEDICAR – ENCERRAR MATRÍCULA (bloqueio de protocolo)
 # ============================================================
-async def medicar_excluir_familia(token, tenantid, titular):
+async def medicar_encerrar_matricula():
     """
-    Envia exclusão de titular (e família) para a Medicar.
+    Executa o encerramento de matrícula na Medicar seguindo o fluxo oficial:
+    1. Obter token
+    2. Obter contrato (para pegar subscriberId e tenantid)
+    3. Encerrar matrícula (blockProtocol)
     """
-    url = f"{MEDICAR_BASE_URL}/fwmodel/PLIncBenModel/"
-    params = {"tenantId": tenantid}
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    try:
+        # 1️⃣ Token
+        token = await medicar_get_token()
 
-    cpf_tit = only_digits(titular.get("cpf"))
-    nome_tit = only_ascii_upper(titular.get("nome"))
+        # 2️⃣ Contrato (bba matrícula)
+        contrato_data = await medicar_get_contract(token)
+        tenantid = contrato_data.get("tenantid") or os.getenv("TENANT_ID")
+        subscriber_id = contrato_data.get("subscriberId") or contrato_data.get("bba", {}).get("subscriberId")
 
-    payload = {
-        "id": "PLIncBenModel",
-        "operation": 4,  # exclusão
-        "models": [{
-            "id": "MASTERBBA",
-            "modeltype": "FIELDS",
-            "fields": [
-                {"id": "BBA_CPFTIT", "order": 1, "value": cpf_tit},
-                {"id": "BBA_EMPBEN", "order": 2, "value": nome_tit},
-            ]
-        }]
-    }
+        if not subscriber_id:
+            raise RuntimeError("subscriberId não encontrado no contrato da Medicar.")
+        if not tenantid:
+            raise RuntimeError("tenantid não encontrado no contrato da Medicar.")
 
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-        resp = await client.post(url, params=params, headers=headers, json=payload)
-        resp.raise_for_status()
-        return resp.json()
+        # 3️⃣ Encerrar matrícula
+        url_block = f"{MEDICAR_BASE_URL}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "subscriberId": subscriber_id,
+            "reason": "000001",  # motivo padrão
+            "blockDate": datetime.now().strftime("%Y-%m-%d"),
+            "loginUser": os.getenv("MEDICAR_LOGIN_USER", "api.atendemed")
+        }
+
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+            resp = await client.post(url_block, headers=headers, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+
+        log.info(f"✅ Matrícula encerrada com sucesso (subscriberId={subscriber_id})")
+        return {
+            "status": "ok",
+            "subscriberId": subscriber_id,
+            "tenantid": tenantid,
+            "resposta": data
+        }
+
+    except Exception as e:
+        log.exception("Erro ao encerrar matrícula na Medicar")
+        return {"status": "erro", "mensagem": str(e)}
+
 
 # ============================================================
 # ENDPOINT PRINCIPAL
@@ -352,53 +376,22 @@ async def webhook_clientes(request: Request):
 
     return {"status": "ok", "resultados": results}
 
-@app.post("/webhook/excluir")
-async def webhook_excluir(
-    request: Request,
-    nome: str = None,
-    cpf: str = None,
-    tenantid: str = None
-):
+@app.post("/webhook/encerrar")
+async def webhook_encerrar():
     """
-    Endpoint de teste para exclusão manual de titular na Medicar.
-    Pode receber parâmetros via query string ou corpo JSON.
-    Exemplo via URL:
-      /webhook/excluir?nome=JOAO%20TESTE&cpf=12345678900
-    Exemplo via body JSON:
-      {"nome":"JOAO TESTE","cpf":"12345678900","tenantid":"TENANT123"}
+    Endpoint de teste manual para encerramento de matrícula na Medicar.
+    Executa o fluxo completo:
+      1. Token
+      2. Contrato (subscriberId)
+      3. BlockProtocol
     """
-
-    # Tenta pegar JSON se existir
     try:
-        body = await request.json()
-    except Exception:
-        body = {}
-
-    nome = only_ascii_upper(nome or body.get("nome"))
-    cpf = only_digits(cpf or body.get("cpf"))
-    tenantid = tenantid or body.get("tenantid")
-
-    if not cpf:
-        return {"status": "erro", "mensagem": "CPF é obrigatório"}
-
-    try:
-        token = await medicar_get_token()
-        tenantid = tenantid or TENANT_ID or (await medicar_get_contract(token)).get("tenantid")
-
-        titular = {"nome": nome or "NOME DESCONHECIDO", "cpf": cpf}
-        resp = await medicar_excluir_familia(token, tenantid, titular)
-
-        log.info(f"✅ Exclusão enviada para CPF {cpf}")
-        return {
-            "status": "ok",
-            "cpf": cpf,
-            "tenantid": tenantid,
-            "resposta": resp
-        }
-
+        resultado = await medicar_encerrar_matricula()
+        return resultado
     except Exception as e:
-        log.exception(f"Erro ao excluir CPF {cpf}")
+        log.exception("Erro ao encerrar matrícula manualmente")
         return {"status": "erro", "mensagem": str(e)}
+
 
 
 @app.get("/health")
