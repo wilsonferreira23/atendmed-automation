@@ -205,25 +205,25 @@ async def medicar_incluir_familia(token, tenantid, titular, dependentes, plano, 
         return resp.json()
 
 # ============================================================
-# MEDICAR – ENCERRAR MATRÍCULA (bloqueio de protocolo)
+# MEDICAR – ENCERRAR MATRÍCULA (porta 1356)
 # ============================================================
 async def medicar_encerrar_matricula(
     subscriber_id: str | None = None,
     reason: str = "000001",
-    block_date: str | None = None,     # "YYYY-MM-DD" (opcional)
+    block_date: str | None = None,
     login_user: str | None = None
 ):
     """
-    Executa o encerramento de matrícula na Medicar seguindo o fluxo oficial:
+    Executa o encerramento de matrícula na Medicar seguindo o fluxo oficial (porta 1356):
     1️⃣ Obter token
     2️⃣ Obter contrato (para pegar subscriberId e tenantid)
     3️⃣ Enviar POST /blockProtocol
     """
     try:
-        # 1️⃣ Token
+        # 1️⃣ Obter token
         token = await medicar_get_token()
 
-        # 2️⃣ Contrato (pegar tenantid e subscriberId caso não informado)
+        # 2️⃣ Obter contrato (para tenantid e subscriberId)
         contrato_data = await medicar_get_contract(token)
         tenantid = contrato_data.get("tenantid") or os.getenv("TENANT_ID")
         if not subscriber_id:
@@ -237,11 +237,13 @@ async def medicar_encerrar_matricula(
         if not subscriber_id:
             raise RuntimeError("subscriberId não encontrado no contrato da Medicar.")
 
-        # 3️⃣ Monta payload
+        # 3️⃣ Montar payload
         block_date = block_date or datetime.now().strftime("%Y-%m-%d")
         login_user = (login_user or os.getenv("MEDICAR_LOGIN_USER") or "api.atendemed")
 
-        url_block = f"{MEDICAR_BASE_URL}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
+        # 🚨 Alteração principal: porta 1356
+        url_block = "https://medicar146708.protheus.cloudtotvs.com.br:1356/rest/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
+
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json;charset=utf-8",
@@ -251,7 +253,7 @@ async def medicar_encerrar_matricula(
         payload = {
             "subscriberId": str(subscriber_id),
             "reason": str(reason),
-            "blockDate": block_date,  # YYYY-MM-DD
+            "blockDate": block_date,
             "loginUser": only_ascii_upper(login_user)
         }
 
@@ -261,11 +263,8 @@ async def medicar_encerrar_matricula(
 
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
             resp = await client.post(url_block, headers=headers, params=params, json=payload)
-
-            # se o servidor retornar erro, registrar o conteúdo para debug
             if resp.status_code >= 400:
                 log.error(f"❌ Erro {resp.status_code} da Medicar: {resp.text}")
-
             resp.raise_for_status()
             data = resp.json()
 
@@ -281,7 +280,6 @@ async def medicar_encerrar_matricula(
     except Exception as e:
         log.exception("Erro ao encerrar matrícula na Medicar")
         return {"status": "erro", "mensagem": str(e)}
-
 
 
 # ============================================================
