@@ -353,31 +353,48 @@ async def webhook_clientes(request: Request):
     return {"status": "ok", "resultados": results}
 
 @app.post("/webhook/excluir")
-async def webhook_excluir(request: Request):
+async def webhook_excluir(
+    request: Request,
+    nome: str = None,
+    cpf: str = None,
+    tenantid: str = None
+):
     """
     Endpoint de teste para exclusão manual de titular na Medicar.
-    Corpo esperado:
-    {
-      "nome": "JOAO TESTE",
-      "cpf": "12345678900"
-    }
+    Pode receber parâmetros via query string ou corpo JSON.
+    Exemplo via URL:
+      /webhook/excluir?nome=JOAO%20TESTE&cpf=12345678900
+    Exemplo via body JSON:
+      {"nome":"JOAO TESTE","cpf":"12345678900","tenantid":"TENANT123"}
     """
-    body = await request.json()
-    nome = only_ascii_upper(body.get("nome"))
-    cpf = only_digits(body.get("cpf"))
+
+    # Tenta pegar JSON se existir
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    nome = only_ascii_upper(nome or body.get("nome"))
+    cpf = only_digits(cpf or body.get("cpf"))
+    tenantid = tenantid or body.get("tenantid")
 
     if not cpf:
         return {"status": "erro", "mensagem": "CPF é obrigatório"}
 
     try:
         token = await medicar_get_token()
-        tenantid = TENANT_ID or (await medicar_get_contract(token)).get("tenantid")
+        tenantid = tenantid or TENANT_ID or (await medicar_get_contract(token)).get("tenantid")
 
-        titular = {"nome": nome, "cpf": cpf}
+        titular = {"nome": nome or "NOME DESCONHECIDO", "cpf": cpf}
         resp = await medicar_excluir_familia(token, tenantid, titular)
 
         log.info(f"✅ Exclusão enviada para CPF {cpf}")
-        return {"status": "ok", "cpf": cpf, "resposta": resp}
+        return {
+            "status": "ok",
+            "cpf": cpf,
+            "tenantid": tenantid,
+            "resposta": resp
+        }
 
     except Exception as e:
         log.exception(f"Erro ao excluir CPF {cpf}")
