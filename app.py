@@ -205,6 +205,38 @@ async def medicar_incluir_familia(token, tenantid, titular, dependentes, plano, 
         return resp.json()
 
 # ============================================================
+# MEDICAR – EXCLUSÃO DE FAMÍLIA
+# ============================================================
+async def medicar_excluir_familia(token, tenantid, titular):
+    """
+    Envia exclusão de titular (e família) para a Medicar.
+    """
+    url = f"{MEDICAR_BASE_URL}/fwmodel/PLIncBenModel/"
+    params = {"tenantId": tenantid}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    cpf_tit = only_digits(titular.get("cpf"))
+    nome_tit = only_ascii_upper(titular.get("nome"))
+
+    payload = {
+        "id": "PLIncBenModel",
+        "operation": 4,  # exclusão
+        "models": [{
+            "id": "MASTERBBA",
+            "modeltype": "FIELDS",
+            "fields": [
+                {"id": "BBA_CPFTIT", "order": 1, "value": cpf_tit},
+                {"id": "BBA_EMPBEN", "order": 2, "value": nome_tit},
+            ]
+        }]
+    }
+
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        resp = await client.post(url, params=params, headers=headers, json=payload)
+        resp.raise_for_status()
+        return resp.json()
+
+# ============================================================
 # ENDPOINT PRINCIPAL
 # ============================================================
 @app.post("/webhook/clientes")
@@ -319,6 +351,38 @@ async def webhook_clientes(request: Request):
             results.append({"cpf": cpf, "status": "erro", "erro": str(e)})
 
     return {"status": "ok", "resultados": results}
+
+@app.post("/webhook/excluir")
+async def webhook_excluir(request: Request):
+    """
+    Endpoint de teste para exclusão manual de titular na Medicar.
+    Corpo esperado:
+    {
+      "nome": "JOAO TESTE",
+      "cpf": "12345678900"
+    }
+    """
+    body = await request.json()
+    nome = only_ascii_upper(body.get("nome"))
+    cpf = only_digits(body.get("cpf"))
+
+    if not cpf:
+        return {"status": "erro", "mensagem": "CPF é obrigatório"}
+
+    try:
+        token = await medicar_get_token()
+        tenantid = TENANT_ID or (await medicar_get_contract(token)).get("tenantid")
+
+        titular = {"nome": nome, "cpf": cpf}
+        resp = await medicar_excluir_familia(token, tenantid, titular)
+
+        log.info(f"✅ Exclusão enviada para CPF {cpf}")
+        return {"status": "ok", "cpf": cpf, "resposta": resp}
+
+    except Exception as e:
+        log.exception(f"Erro ao excluir CPF {cpf}")
+        return {"status": "erro", "mensagem": str(e)}
+
 
 @app.get("/health")
 async def health():
