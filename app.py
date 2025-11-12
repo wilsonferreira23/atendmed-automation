@@ -207,39 +207,45 @@ async def medicar_incluir_familia(token, tenantid, titular, dependentes, plano, 
 # ============================================================
 # MEDICAR – ENCERRAR MATRÍCULA (bloqueio de protocolo)
 # ============================================================
-async def medicar_encerrar_matricula():
+async def medicar_encerrar_matricula(
+    subscriber_id: str | None = None,
+    reason: str = "000001",
+    block_date: str | None = None,     # "YYYY-MM-DD" (opcional)
+    login_user: str | None = None
+):
     """
-    Executa o encerramento de matrícula na Medicar seguindo o fluxo oficial:
-    1. Obter token
-    2. Obter contrato (para pegar subscriberId e tenantid)
-    3. Encerrar matrícula (blockProtocol)
+    1) Token
+    2) Contrato (se subscriber_id não for informado)
+    3) POST blockProtocol com reason, blockDate e loginUser
     """
     try:
-        # 1️⃣ Token
+        # 1) Token
         token = await medicar_get_token()
 
-        # 2️⃣ Contrato (bba matrícula)
+        # 2) Contrato (pega tenantid e/ou subscriberId se faltar)
         contrato_data = await medicar_get_contract(token)
         tenantid = contrato_data.get("tenantid") or os.getenv("TENANT_ID")
-        subscriber_id = contrato_data.get("subscriberId") or contrato_data.get("bba", {}).get("subscriberId")
-
         if not subscriber_id:
-            raise RuntimeError("subscriberId não encontrado no contrato da Medicar.")
+            subscriber_id = (
+                contrato_data.get("subscriberId")
+                or (contrato_data.get("bba") or {}).get("subscriberId")
+            )
         if not tenantid:
             raise RuntimeError("tenantid não encontrado no contrato da Medicar.")
+        if not subscriber_id:
+            raise RuntimeError("subscriberId não encontrado no contrato da Medicar.")
 
-        # 3️⃣ Encerrar matrícula
+        # 3) Monta payload
+        block_date = block_date or datetime.now().strftime("%Y-%m-%d")
+        login_user = (login_user or os.getenv("MEDICAR_LOGIN_USER") or "api.atendemed")
+
         url_block = f"{MEDICAR_BASE_URL}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         payload = {
-            "subscriberId": subscriber_id,
-            "reason": "000001",  # motivo padrão
-            "blockDate": datetime.now().strftime("%Y-%m-%d"),
-            "loginUser": os.getenv("MEDICAR_LOGIN_USER", "api.atendemed")
+            "subscriberId": str(subscriber_id),
+            "reason": str(reason),
+            "blockDate": block_date,      # YYYY-MM-DD
+            "loginUser": only_ascii_upper(login_user),
         }
 
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
@@ -247,17 +253,13 @@ async def medicar_encerrar_matricula():
             resp.raise_for_status()
             data = resp.json()
 
-        log.info(f"✅ Matrícula encerrada com sucesso (subscriberId={subscriber_id})")
-        return {
-            "status": "ok",
-            "subscriberId": subscriber_id,
-            "tenantid": tenantid,
-            "resposta": data
-        }
+        log.info(f"✅ Encerramento ok (subscriberId={subscriber_id}, blockDate={block_date}, loginUser={login_user})")
+        return {"status": "ok", "tenantid": tenantid, "subscriberId": subscriber_id, "resposta": data}
 
     except Exception as e:
         log.exception("Erro ao encerrar matrícula na Medicar")
         return {"status": "erro", "mensagem": str(e)}
+
 
 
 # ============================================================
@@ -377,21 +379,47 @@ async def webhook_clientes(request: Request):
     return {"status": "ok", "resultados": results}
 
 @app.post("/webhook/encerrar")
-async def webhook_encerrar():
+async def webhook_encerrar(
+    request: Request,
+    subscriberId: str | None = None,
+    reason: str = "000001",
+    blockDate: str | None = None,      # "YYYY-MM-DD"
+    loginUser: str | None = None
+):
     """
-    Endpoint de teste manual para encerramento de matrícula na Medicar.
-    Executa o fluxo completo:
-      1. Token
-      2. Contrato (subscriberId)
-      3. BlockProtocol
+    Teste manual do encerramento.
+    Envie por query string OU body JSON:
+    {
+      "subscriberId": "10010004153123000",
+      "reason": "000001",
+      "blockDate": "2025-10-27",
+      "loginUser": "ABEL DE CAMARGO"
+    }
+    Se 'subscriberId' não for enviado, será buscado no /client/v1/contract.
     """
     try:
-        resultado = await medicar_encerrar_matricula()
-        return resultado
-    except Exception as e:
-        log.exception("Erro ao encerrar matrícula manualmente")
-        return {"status": "erro", "mensagem": str(e)}
+        # tenta body JSON (opcional)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
 
+        subscriber_id = (subscriberId or body.get("subscriberId"))
+        reason = (reason or body.get("reason") or "000001")
+        block_date = (blockDate or body.get("blockDate"))  # se None, função usa hoje
+        login_user = (loginUser or body.get("loginUser"))  # se None, usa MEDICAR_LOGIN_USER/env
+
+        resultado = await medicar_encerrar_matricula(
+            subscriber_id=subscriber_id,
+            reason=reason,
+            block_date=block_date,
+            login_user=login_user
+        )
+        return resultado
+
+    except Exception as e:
+        log.exception("Erro no /webhook/encerrar")
+        return {"status": "erro", "mensagem": str(e)}
 
 
 @app.get("/health")
