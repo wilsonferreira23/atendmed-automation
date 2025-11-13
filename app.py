@@ -393,8 +393,14 @@ async def cancelar_por_cpf(
         resp = await httpx_retry("GET", url, headers=headers, params=params)
         contract = resp.json()
 
+        log.warning(f"[DEBUG] Resposta completa do /client/v1/contract: {contract}")
+
     except Exception as e:
         return {"status": "erro", "mensagem": f"Erro buscando matrícula: {e}"}
+
+
+
+    log.warning(f"[DEBUG] Resposta completa do /client/v1/contract: {contract}")
 
     subscriberId = contract.get("BBA_MATRIC")
     tenantid = contract.get("tenantid")
