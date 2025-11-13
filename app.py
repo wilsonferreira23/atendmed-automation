@@ -363,50 +363,68 @@ async def webhook_clientes(request: Request):
     return {"status": "ok", "resultados": results}
 
 
-from fastapi import Query
-from datetime import date
 
-@app.post("/test/encerrar-matricula")
-async def test_encerrar_matricula(
-    subscriberId: str = Query(None),
+@app.post("/cancelar-por-cpf")
+async def cancelar_por_cpf(
+    cpf: str = Query(...),
     reason: str = Query("000001"),
-    blockDate: str = Query(None),
-    loginUser: str = Query(None),
-    request: Request = None
+    loginUser: str = Query("USUARIO API")
 ):
 
-    # Tenta absorver JSON também
-    body = {}
-    try:
-        body = await request.json()
-    except:
-        pass
+    cpf_digits = only_digits(cpf)
 
-    subscriberId = subscriberId or body.get("subscriberId")
-    reason = reason or body.get("reason", "000001")
-    blockDate = blockDate or body.get("blockDate") or date.today().strftime("%Y-%m-%d")
-    loginUser = loginUser or body.get("loginUser") or "USUARIO API"
-
-    if not subscriberId:
-        return {"status": "erro", "mensagem": "subscriberId é obrigatório"}
-
-    # Token
+    # 1️⃣ Token
     try:
         token = await medicar_get_token()
     except Exception as e:
-        log.error("Erro ao obter token no teste de encerramento", exc_info=True)
-        return {"status": "erro", "mensagem": f"Erro token: {e}"}
+        return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
 
-    # Chamada ao endpoint real
+    # 2️⃣ Buscar o BBA_MATRIC (subscriberId) + tenantid
     try:
-        resp = await medicar_encerrar_matricula(
+        url = f"{MEDICAR_BASE_URL}/client/v1/contract"
+        headers = {"Authorization": f"Bearer {token}"}
+        params = {
+            "cnpjmedicar": MEDICAR_CNPJMEDICAR,
+            "grupoempresa": MEDICAR_GRUPOEMPRESA,
+            "contrato": MEDICAR_CONTRATO,
+            "cgcbeneficiario": cpf_digits
+        }
+
+        resp = await httpx_retry("GET", url, headers=headers, params=params)
+        contract = resp.json()
+
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"Erro buscando matrícula: {e}"}
+
+    subscriberId = contract.get("BBA_MATRIC")
+    tenantid = contract.get("tenantid")
+
+    if not subscriberId:
+        return {"status": "erro", "mensagem": "Não foi possível obter subscriberId (BBA_MATRIC)"}
+
+    if not tenantid:
+        return {"status": "erro", "mensagem": "Não foi possível obter tenantid"}
+
+    # 3️⃣ Encerrar matrícula
+    blockDate = date.today().strftime("%Y-%m-%d")
+
+    try:
+        result = await medicar_encerrar_matricula(
             token=token,
             subscriber_id=subscriberId,
             reason=reason,
             block_date=blockDate,
-            login_user=loginUser
+            login_user=loginUser,
+            tenantid=tenantid    # 👈 AQUI!!!
         )
-        return {"status": "ok", "resposta": resp}
+
+        return {
+            "status": "ok",
+            "cpf": cpf_digits,
+            "subscriberId": subscriberId,
+            "tenantid": tenantid,
+            "resultado": result
+        }
 
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
