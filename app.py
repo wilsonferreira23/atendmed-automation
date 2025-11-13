@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from pydantic import BaseModel
 import os, json, logging, asyncio, re
-import httpx, Query
+import httpx
 from datetime import datetime, timedelta, date
 
 app = FastAPI(title="Atende Med – Integração TENEX → MEDICAR (async)")
