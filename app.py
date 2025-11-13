@@ -208,84 +208,43 @@ async def medicar_incluir_familia(token, tenantid, titular, dependentes, plano, 
 # MEDICAR – ENCERRAR MATRÍCULA (porta 1356, parametrizado)
 # ============================================================
 async def medicar_encerrar_matricula(
-    subscriber_id: str | None = None,
-    reason: str = "000001",
-    block_date: str | None = None,
-    login_user: str | None = None
+    token: str,
+    subscriber_id: str,
+    reason: str,
+    block_date: str,
+    login_user: str
 ):
     """
-    Executa o encerramento de matrícula na Medicar (porta 1356):
-    1️⃣ Pega o token
-    2️⃣ Busca contrato (pega tenantid e subscriberId)
-    3️⃣ Envia o POST para /beneficiaries/blockProtocol
+    Executa o encerramento de matrícula no Medicar usando o endpoint blockProtocol.
     """
 
+    url = f"{MEDICAR_BASE_URL}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "tenantid": TENANT_ID   # exemplo: "01,006001"
+    }
+
+    payload = {
+        "subscriberId": subscriber_id,
+        "reason": reason,
+        "blockDate": block_date,
+        "loginUser": login_user
+    }
+
+    log.info(f"[MEDICAR] Encerrando matrícula subscriberId={subscriber_id} payload={payload}")
+
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        resp = await client.post(url, headers=headers, json=payload)
+
     try:
-        # === 1️⃣ Obter token ===
-        token = await medicar_get_token()
+        resp.raise_for_status()
+    except Exception:
+        log.error(f"Erro ao encerrar matrícula: {resp.text}")
+        raise
 
-        # === 2️⃣ Buscar contrato (para pegar tenantid e subscriberId) ===
-        contrato_data = await medicar_get_contract(token)
-        tenantid = contrato_data.get("tenantid") or os.getenv("TENANT_ID")
-
-        if not subscriber_id:
-            subscriber_id = (
-                contrato_data.get("subscriberId")
-                or (contrato_data.get("bba") or {}).get("subscriberId")
-            )
-
-        if not tenantid:
-            raise RuntimeError("❌ tenantid não encontrado no contrato da Medicar.")
-        if not subscriber_id:
-            raise RuntimeError("❌ subscriberId não encontrado no contrato da Medicar.")
-
-        # === 3️⃣ Preparar requisição ===
-        block_date = block_date or datetime.now().strftime("%Y-%m-%d")
-        login_user = (login_user or os.getenv("MEDICAR_LOGIN_USER") or "api.atendemed")
-
-        # ✅ Monta a URL a partir do .env
-        MEDICAR_BASE_URL_1356 = os.getenv(
-            "MEDICAR_BASE_URL_1356",
-            "https://medicar146708.protheus.cloudtotvs.com.br:1356/rest"
-        ).rstrip("/")
-
-        url_block = f"{MEDICAR_BASE_URL_1356}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
-
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json;charset=utf-8",
-            "Accept": "application/json"
-        }
-
-        payload = {
-            "subscriberId": str(subscriber_id),
-            "reason": str(reason),
-            "blockDate": block_date,
-            "loginUser": only_ascii_upper(login_user)
-        }
-
-        params = {"tenantid": tenantid}
-
-        log.info(f"🚀 Encerrando matrícula subscriberId={subscriber_id}, tenantid={tenantid}, blockDate={block_date}")
-
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-            resp = await client.post(url_block, headers=headers, params=params, json=payload)
-            log.info(f"🔁 Resposta Medicar: {resp.status_code} -> {resp.text}")
-            resp.raise_for_status()
-            data = resp.json()
-
-        log.info(f"✅ Matrícula encerrada com sucesso (subscriberId={subscriber_id})")
-        return {
-            "status": "ok",
-            "tenantid": tenantid,
-            "subscriberId": subscriber_id,
-            "payload_enviado": payload,
-            "resposta": data
-        }
-
-    except Exception as e:
-        log.exception("Erro ao encerrar matrícula na Medicar")
-        return {"status": "erro", "mensagem": str(e)}
+    return resp.json()
 
 
 # ============================================================
@@ -404,49 +363,48 @@ async def webhook_clientes(request: Request):
 
     return {"status": "ok", "resultados": results}
 
-@app.post("/webhook/encerrar")
-async def webhook_encerrar(
-    request: Request,
-    subscriberId: str | None = None,
-    reason: str = "000001",
-    blockDate: str | None = None,      # "YYYY-MM-DD"
-    loginUser: str | None = None
+@app.post("/test/encerrar-matricula")
+async def test_encerrar_matricula(
+    subscriberId: str = Query(None),
+    reason: str = Query("000001"),
+    blockDate: str = Query(None),
+    loginUser: str = Query(None),
+    request: Request = None
 ):
-    """
-    Teste manual do encerramento.
-    Envie por query string OU body JSON:
-    {
-      "subscriberId": "10010004153123000",
-      "reason": "000001",
-      "blockDate": "2025-10-27",
-      "loginUser": "ABEL DE CAMARGO"
-    }
-    Se 'subscriberId' não for enviado, será buscado no /client/v1/contract.
-    """
+
+    # Tenta absorver JSON também
+    body = {}
     try:
-        # tenta body JSON (opcional)
-        try:
-            body = await request.json()
-        except Exception:
-            body = {}
+        body = await request.json()
+    except:
+        pass
 
-        subscriber_id = (subscriberId or body.get("subscriberId"))
-        reason = (reason or body.get("reason") or "000001")
-        block_date = (blockDate or body.get("blockDate"))  # se None, função usa hoje
-        login_user = (loginUser or body.get("loginUser"))  # se None, usa MEDICAR_LOGIN_USER/env
+    subscriberId = subscriberId or body.get("subscriberId")
+    reason = reason or body.get("reason", "000001")
+    blockDate = blockDate or body.get("blockDate") or date.today().strftime("%Y-%m-%d")
+    loginUser = loginUser or body.get("loginUser") or "USUARIO API"
 
-        resultado = await medicar_encerrar_matricula(
-            subscriber_id=subscriber_id,
+    if not subscriberId:
+        return {"status": "erro", "mensagem": "subscriberId é obrigatório"}
+
+    try:
+        token = await medicar_get_token()
+    except Exception as e:
+        log.error("Erro ao obter token no teste de encerramento", exc_info=True)
+        return {"status": "erro", "mensagem": f"Erro token: {e}"}
+
+    try:
+        resp = await medicar_encerrar_matricula(
+            token=token,
+            subscriber_id=subscriberId,
             reason=reason,
-            block_date=block_date,
-            login_user=login_user
+            block_date=blockDate,
+            login_user=loginUser
         )
-        return resultado
+        return {"status": "ok", "resposta": resp}
 
     except Exception as e:
-        log.exception("Erro no /webhook/encerrar")
         return {"status": "erro", "mensagem": str(e)}
-
 
 @app.get("/health")
 async def health():
