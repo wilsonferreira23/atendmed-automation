@@ -362,100 +362,54 @@ async def webhook_clientes(request: Request):
 
     return {"status": "ok", "resultados": results}
 
+
 from fastapi import Query
 from datetime import date
 
-@app.post("/cancelar-por-cpf")
-async def cancelar_por_cpf(
-    cpf: str = Query(..., description="CPF do titular para cancelar a matrícula"),
+@app.post("/test/encerrar-matricula")
+async def test_encerrar_matricula(
+    subscriberId: str = Query(None),
     reason: str = Query("000001"),
-    loginUser: str = Query("USUARIO API")
+    blockDate: str = Query(None),
+    loginUser: str = Query(None),
+    request: Request = None
 ):
-    """
-    Cancela automaticamente a matrícula do beneficiário:
-    1. Busca token
-    2. Consulta contrato pelo CPF
-    3. Extrai subscriberId (BBA_MATRIC)
-    4. Envia blockProtocol
-    """
 
+    # Tenta absorver JSON também
+    body = {}
+    try:
+        body = await request.json()
+    except:
+        pass
+
+    subscriberId = subscriberId or body.get("subscriberId")
+    reason = reason or body.get("reason", "000001")
+    blockDate = blockDate or body.get("blockDate") or date.today().strftime("%Y-%m-%d")
+    loginUser = loginUser or body.get("loginUser") or "USUARIO API"
+
+    if not subscriberId:
+        return {"status": "erro", "mensagem": "subscriberId é obrigatório"}
+
+    # Token
     try:
         token = await medicar_get_token()
     except Exception as e:
-        return {"status": "erro", "mensagem": f"Erro ao gerar token: {e}"}
+        log.error("Erro ao obter token no teste de encerramento", exc_info=True)
+        return {"status": "erro", "mensagem": f"Erro token: {e}"}
 
-    # -------------------------------------------
-    # 1) Buscar contrato para pegar subscriberId
-    # -------------------------------------------
-    url_contract = (
-        f"{MEDICAR_BASE_URL}/client/v1/contract"
-        f"?cnpjmedicar={MEDICAR_CNPJMEDICAR}"
-        f"&grupoempresa={MEDICAR_GRUPOEMPRESA}"
-        f"&contrato={MEDICAR_CONTRATO}"
-        f"&cgcbeneficiario={only_digits(cpf)}"
-    )
-
-    headers = {"Authorization": f"Bearer {token}"}
-
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-        resp = await client.get(url_contract, headers=headers)
-
-    if resp.status_code != 200:
-        return {"status": "erro", "mensagem": f"Falha ao consultar contrato: {resp.text}"}
-
-    contrato = resp.json()
-
-    subscriberId = contrato.get("BBA_MATRIC")
-    tenantid = contrato.get("tenantid")
-
-    if not subscriberId:
-        return {
-            "status": "erro",
-            "mensagem": "Nenhuma matrícula encontrada (subscriberId). Beneficiário não existe ou não está ativo."
-        }
-
-    if not tenantid:
-        return {
-            "status": "erro",
-            "mensagem": "tenantid não retornado pelo contrato. Cancelamento não pode ser feito."
-        }
-
-    # -------------------------------------------
-    # 2) Realizar o cancelamento blockProtocol
-    # -------------------------------------------
-    block_url = f"{MEDICAR_BASE_URL_BLO}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
-
-    today = date.today().strftime("%Y-%m-%d")
-
-    payload = {
-        "subscriberId": subscriberId,
-        "reason": reason,
-        "blockDate": today,
-        "loginUser": loginUser
-    }
-
-    headers2 = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "tenantid": tenantid
-    }
-
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-        resp2 = await client.post(block_url, headers=headers2, json=payload)
-
+    # Chamada ao endpoint real
     try:
-        resp2.raise_for_status()
-    except Exception:
-        return {"status": "erro", "mensagem": resp2.text}
+        resp = await medicar_encerrar_matricula(
+            token=token,
+            subscriber_id=subscriberId,
+            reason=reason,
+            block_date=blockDate,
+            login_user=loginUser
+        )
+        return {"status": "ok", "resposta": resp}
 
-    return {
-        "status": "ok",
-        "acao": "matricula_encerrada",
-        "cpf": cpf,
-        "subscriberId": subscriberId,
-        "tenantid": tenantid,
-        "resposta_medicar": resp2.json()
-    }
+    except Exception as e:
+        return {"status": "erro", "mensagem": str(e)}
 
 
 @app.get("/health")
