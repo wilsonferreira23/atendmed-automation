@@ -420,8 +420,7 @@ async def cancelar_por_cpf(
             subscriber_id=subscriberId,
             reason=reason,
             block_date=blockDate,
-            login_user=loginUser,
-            tenantid=tenantid    # 👈 AQUI!!!
+            login_user=loginUser,   
         )
 
         return {
