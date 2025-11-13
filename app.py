@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 import os, json, logging, asyncio, re
-import httpx
-from datetime import datetime, timedelta
+import httpx, Query
+from datetime import datetime, timedelta, date
 
 app = FastAPI(title="Atende Med – Integração TENEX → MEDICAR (async)")
 
@@ -369,15 +369,14 @@ async def test_encerrar_matricula(
     reason: str = Query("000001"),
     blockDate: str = Query(None),
     loginUser: str = Query(None),
-    request: Request = None
+    request: Request
 ):
 
     # Tenta absorver JSON também
-    body = {}
     try:
         body = await request.json()
     except:
-        pass
+        body = {}
 
     subscriberId = subscriberId or body.get("subscriberId")
     reason = reason or body.get("reason", "000001")
@@ -390,8 +389,7 @@ async def test_encerrar_matricula(
     try:
         token = await medicar_get_token()
     except Exception as e:
-        log.error("Erro ao obter token no teste de encerramento", exc_info=True)
-        return {"status": "erro", "mensagem": f"Erro token: {e}"}
+        return {"status": "erro", "mensagem": f"Erro ao obter token: {e}"}
 
     try:
         resp = await medicar_encerrar_matricula(
