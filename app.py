@@ -365,11 +365,11 @@ async def webhook_clientes(request: Request):
 
 @app.post("/test/encerrar-matricula")
 async def test_encerrar_matricula(
+    request: Request,
     subscriberId: str = Query(None),
     reason: str = Query("000001"),
     blockDate: str = Query(None),
-    loginUser: str = Query(None),
-    request: Request
+    loginUser: str = Query(None)
 ):
 
     # Tenta absorver JSON também
