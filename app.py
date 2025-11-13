@@ -218,7 +218,7 @@ async def medicar_encerrar_matricula(
     Executa o encerramento de matrícula no Medicar usando o endpoint blockProtocol.
     """
 
-    url = f"{MEDICAR_BASE_URL}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
+    url = f"{MEDICAR_BASE_URL_BLO}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
 
     headers = {
         "Authorization": f"Bearer {token}",
@@ -424,7 +424,7 @@ async def cancelar_por_cpf(
     # -------------------------------------------
     # 2) Realizar o cancelamento blockProtocol
     # -------------------------------------------
-    block_url = f"{MEDICAR_BASE_URL}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
+    block_url = f"{MEDICAR_BASE_URL_BLO}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
 
     today = date.today().strftime("%Y-%m-%d")
 
