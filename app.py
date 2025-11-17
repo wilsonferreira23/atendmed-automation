@@ -434,6 +434,95 @@ async def cancelar_por_cpf(
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
 
+@app.post("/adicionar-dependentes")
+async def adicionar_dependentes(
+    cpf_titular: str = Query(..., description="CPF do titular já cadastrado na Medicar"),
+    dependentes: str = Query(..., description="JSON com lista de dependentes")
+):
+    """
+    Endpoint manual para adicionar dependentes a um titular existente.
+    Exemplo dependentes (JSON no Query):
+    [
+        {
+            "nome": "FULANO DEP 1",
+            "cpf": "12345678901",
+            "data_nascimento": "19900101",
+            "sexo": "1",
+            "nome_mae": "MARIA DEPENDENTE"
+        },
+        {
+            "nome": "CICLANO DEP 2",
+            "cpf": "98765432100",
+            "data_nascimento": "20150101",
+            "sexo": "2",
+            "nome_mae": "ANA DEP"
+        }
+    ]
+    """
+
+    cpf_digits = only_digits(cpf_titular)
+
+    # converte JSON string para lista
+    try:
+        dependentes_list = json.loads(dependentes)
+        if not isinstance(dependentes_list, list):
+            return {"status": "erro", "mensagem": "Dependentes deve ser uma lista JSON"}
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"JSON inválido: {e}"}
+
+    # 1️⃣ Token
+    try:
+        token = await medicar_get_token()
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
+
+    # 2️⃣ Buscar matrícula do titular
+    try:
+        url = f"{MEDICAR_BASE_URL}/client/v1/contract"
+        headers = {"Authorization": f"Bearer {token}"}
+        params = {
+            "cnpjmedicar": MEDICAR_CNPJMEDICAR,
+            "grupoempresa": MEDICAR_GRUPOEMPRESA,
+            "contrato": MEDICAR_CONTRATO,
+            "cgcbeneficiario": cpf_digits
+        }
+
+        resp = await httpx_retry("GET", url, headers=headers, params=params)
+        contract = resp.json()
+
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"Erro buscando matrícula: {e}"}
+
+    matricula = contract.get("BBA_MATRIC")
+    tenantid = contract.get("tenantid")
+
+    if not matricula:
+        return {"status": "erro", "mensagem": "Não foi possível obter BBA_MATRIC para este CPF"}
+
+    if not tenantid:
+        return {"status": "erro", "mensagem": "Não foi possível obter tenantid"}
+
+    # 3️⃣ Enviar dependentes
+    try:
+        result = await medicar_incluir_dependentes(
+            token=token,
+            tenantid=tenantid,
+            matricula=matricula,
+            dependentes=dependentes_list
+        )
+
+        return {
+            "status": "ok",
+            "cpf_titular": cpf_digits,
+            "matricula": matricula,
+            "tenantid": tenantid,
+            "dependentes_enviados": len(dependentes_list),
+            "resultado": result
+        }
+
+    except Exception as e:
+        return {"status": "erro", "mensagem": str(e)}
+
 
 @app.get("/health")
 async def health():
