@@ -250,12 +250,19 @@ async def medicar_encerrar_matricula(
 # ============================================================
 # MEDICAR – INCLUIR DEPENDENTES
 # ============================================================
+# ============================================================
+# MEDICAR – INCLUIR DEPENDENTES (corrigida e sanitizada)
+# ============================================================
 async def medicar_incluir_dependentes(
     token: str,
     tenantid: str,
     matricula: str,
     dependentes: list
 ):
+    """
+    Inclui dependentes em um titular já existente na Medicar
+    usando o fwmodel PLIncBenModel.
+    """
     url = f"{MEDICAR_BASE_URL}/fwmodel/PLIncBenModel/"
     params = {"tenantId": tenantid}
 
@@ -266,18 +273,31 @@ async def medicar_incluir_dependentes(
     }
 
     items = []
+
     for i, dep in enumerate(dependentes, start=1):
+
+        nome = only_ascii_upper((dep.get("nome") or "").strip())
+        data_nas = (dep.get("data_nascimento") or "").strip()
+        sexo = str(dep.get("sexo") or "2").strip()
+        cpf = only_digits(dep.get("cpf") or "")
+        mae = only_ascii_upper((dep.get("nome_mae") or "NOME MAE NAO INFORMADO").strip())
+
+        # validações mínimas obrigatórias
+        if not nome or not cpf or not data_nas:
+            log.warning(f"[DEPENDENTE IGNORADO] Campos obrigatórios faltando: nome={nome}, cpf={cpf}, data={data_nas}")
+            continue
+
         items.append({
             "id": i,
             "deleted": 0,
             "fields": [
-                {"id": "B2N_NOMUSR", "value": only_ascii_upper(dep.get("nome", ""))},
-                {"id": "B2N_DATNAS", "value": dep.get("data_nascimento", "")},
-                {"id": "B2N_GRAUPA", "value": "11"},
+                {"id": "B2N_NOMUSR", "value": nome},
+                {"id": "B2N_DATNAS", "value": data_nas},
+                {"id": "B2N_GRAUPA", "value": "11"},   # dependente
                 {"id": "B2N_ESTCIV", "value": "S"},
-                {"id": "B2N_SEXO", "value": dep.get("sexo", "2")},
-                {"id": "B2N_CPFUSR", "value": only_digits(dep.get("cpf", ""))},
-                {"id": "B2N_MAE", "value": only_ascii_upper(dep.get("nome_mae", "NOME MAE NAO INFORMADO"))},
+                {"id": "B2N_SEXO", "value": sexo},
+                {"id": "B2N_CPFUSR", "value": cpf},
+                {"id": "B2N_MAE", "value": mae}
             ]
         })
 
@@ -305,15 +325,19 @@ async def medicar_incluir_dependentes(
         }]
     }
 
-    log.info(f"[MEDICAR] Incluindo {len(dependentes)} dependente(s) na matrícula {matricula}")
+    log.info(f"[MEDICAR] Incluindo {len(items)} dependente(s) na matrícula {matricula}")
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
         resp = await client.post(url, params=params, headers=headers, json=payload)
 
+    # LOG detalhado do erro
     try:
         resp.raise_for_status()
     except Exception:
-        log.error(f"Erro ao incluir dependentes: {resp.text}")
+        log.error(
+            f"[ERRO MEDICAR DEPENDENTES] status={resp.status_code} "
+            f"matricula={matricula} response={resp.text}"
+        )
         raise
 
     return resp.json()
