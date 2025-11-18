@@ -85,7 +85,7 @@ async def tenex_get_cliente_com_contatos(cliente_id: int):
     return items[0] if items else None
 
 # ============================================================
-# MEDICAR – TOKEN / CONTRATO
+# MEDICAR – TOKEN
 # ============================================================
 async def medicar_get_token():
     if _token_cache["token"] and datetime.now() < _token_cache["expiry"]:
@@ -109,21 +109,6 @@ async def medicar_get_token():
 
     log.info("✅ Token Medicar obtido com sucesso.")
     return token
-
-async def medicar_get_contract(token: str):
-    """
-    Busca contrato padrão da Medicar para obter tenantid, etc.
-    Usado como fallback quando TENANT_ID não vem por env.
-    """
-    url = f"{MEDICAR_BASE_URL}/client/v1/contract"
-    headers = {"Authorization": f"Bearer {token}"}
-    params = {
-        "cnpjmedicar": MEDICAR_CNPJMEDICAR,
-        "grupoempresa": MEDICAR_GRUPOEMPRESA,
-        "contrato": MEDICAR_CONTRATO,
-    }
-    resp = await httpx_retry("GET", url, headers=headers, params=params)
-    return resp.json()
 
 # ============================================================
 # MEDICAR – INCLUIR TITULAR (fluxo TOTVS)
@@ -344,14 +329,14 @@ async def medicar_encerrar_matricula(
     return resp.json()
 
 # ============================================================
-# 1) WEBHOOK – NOVO CLIENTE (insert)
+# WEBHOOK PRINCIPAL – FLUXO COMPLETO
 # ============================================================
-@app.post("/webhook/novo-cliente")
-async def webhook_novo_cliente(request: Request):
+@app.post("/webhook/clientes")
+async def webhook_clientes(request: Request):
     body = await request.json()
     items = body if isinstance(body, list) else [body]
 
-    log.info(f"[WEBHOOK NOVO CLIENTE] Recebido: {items}")
+    log.info(f"Webhook recebido: {items}")
 
     # Token Medicar
     try:
@@ -361,41 +346,23 @@ async def webhook_novo_cliente(request: Request):
 
     tenantid = TENANT_ID
 
-    # Caso tenant venha vazio → pega do contrato padrão
+    # Caso tenant venha vazio → pega do contrato
     if not tenantid:
         try:
             contr = await medicar_get_contract(token)
             tenantid = contr.get("tenantid")
-        except Exception as e:
-            log.warning(f"Não foi possível obter tenant padrão: {e}")
+        except Exception:
             tenantid = None
 
     contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
+
     results = []
 
     for item in items:
-        header = item.get("header") or {}
         data = item.get("data") or {}
-
-        op = (header.get("operation") or "").lower()
-        if op and op != "insert":
-            results.append({
-                "status": "ignorado",
-                "motivo": f"operation diferente de insert ({op})",
-                "raw_header": header
-            })
-            continue
 
         cpf = data.get("cpf")
         id_cliente = data.get("id")
-
-        if not cpf or not id_cliente:
-            results.append({
-                "status": "erro",
-                "motivo": "Webhook sem cpf ou id_cliente em data",
-                "data": data
-            })
-            continue
 
         try:
             # === 1️⃣ Buscar plano na TENEX (com retry de 5 tentativas)
@@ -403,40 +370,30 @@ async def webhook_novo_cliente(request: Request):
             for tentativa in range(5):
                 carteira = await tenex_get_carteira(cpf)
                 if isinstance(carteira, list) and carteira and carteira[0].get("planos_contratados"):
-                    log.info(f"[NOVO CLIENTE] Plano encontrado na tentativa {tentativa+1} para CPF {cpf}")
                     break
-                log.warning(f"[NOVO CLIENTE] Tentativa {tentativa+1}/5: plano não disponível para CPF {cpf}. Aguardando 60 s...")
                 await asyncio.sleep(60)
 
             if not carteira or not carteira[0].get("planos_contratados"):
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": "Nenhum plano encontrado após 5 tentativas"
-                })
+                results.append({"cpf": cpf, "status": "ignorado", "motivo": "sem plano"})
                 continue
 
-            pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), carteira[0])
+            pessoa = next((p for p in carteira if only_digits(p.get("cpf")) == only_digits(cpf)), carteira[0])
             id_plano = pessoa["planos_contratados"][0]["id_plano"]
 
             plano = PLAN_MAPPING_JSON.get(str(id_plano))
             if not plano:
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": f"plano {id_plano} não mapeado"
-                })
+                results.append({"cpf": cpf, "status": "ignorado", "motivo": f"plano {id_plano} não mapeado"})
                 continue
 
-            # === 2️⃣ Buscar titular e dependentes no TENEX
+            # === 2️⃣ Buscar titular e dependentes
             cliente_expand = await tenex_get_cliente_com_contatos(id_cliente)
-            contatos = (cliente_expand or {}).get("contatos", []) if cliente_expand else []
+            contatos = (cliente_expand or {}).get("contatos", [])
 
             tit = next((c for c in contatos if str(c.get("principal")) == "1"), None)
             titular_dict = {
-                "nome": only_ascii_upper((tit or data).get("nome") or ""),
-                "cpf": only_digits((tit or data).get("cpf") or ""),
-                "data_nascimento": ((tit or data).get("data_nascimento") or "").replace("-", ""),
+                "nome": only_ascii_upper((tit or data).get("nome")),
+                "cpf": only_digits((tit or data).get("cpf")),
+                "data_nascimento": ( (tit or data).get("data_nascimento") or "" ).replace("-", ""),
                 "sexo": str((tit or data).get("genero") or "2"),
                 "nome_mae": "NOME MAE NAO INFORMADO",
             }
@@ -445,354 +402,72 @@ async def webhook_novo_cliente(request: Request):
             for dep in contatos:
                 if str(dep.get("principal")) != "0":
                     continue
-                if not dep.get("cpf"):
-                    continue
                 dependentes_dicts.append({
-                    "nome": only_ascii_upper(dep.get("nome") or ""),
-                    "cpf": only_digits(dep.get("cpf") or ""),
+                    "nome": only_ascii_upper(dep.get("nome")),
+                    "cpf": only_digits(dep.get("cpf")),
                     "data_nascimento": (dep.get("data_nascimento") or "").replace("-", ""),
                     "sexo": str(dep.get("genero") or "2"),
                     "nome_mae": "NOME MAE NAO INFORMADO",
                 })
 
             if not titular_dict["nome"] or not titular_dict["cpf"]:
-                results.append({"cpf": cpf, "status": "erro", "erro": "Titular inválido (sem nome/CPF)"})
+                results.append({"cpf": cpf, "status": "erro", "erro": "Titular inválido"})
                 continue
 
-            # === 3️⃣ Incluir TITULAR na Medicar
+            # === 3️⃣ INCLUIR TITULAR NA MEDICAR
             resp_titular = await medicar_incluir_titular(
                 token=token,
                 tenantid=tenantid,
                 titular=titular_dict,
                 plano=plano,
-                contract_fields=contract_fields,
+                contract_fields=contract_fields
             )
 
-            log.info(f"[NOVO CLIENTE] Titular incluído → CPF {titular_dict['cpf']}")
+            log.info(f"Titular incluído → CPF {titular_dict['cpf']}")
 
             # === 4️⃣ Buscar a matrícula recém-criada
             url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
-            headers_medicar = {"Authorization": f"Bearer {token}"}
-            params_mat = {
+            headers = {"Authorization": f"Bearer {token}"}
+            params = {
                 "cnpjmedicar": MEDICAR_CNPJMEDICAR,
                 "grupoempresa": MEDICAR_GRUPOEMPRESA,
                 "contrato": MEDICAR_CONTRATO,
-                "cgcbeneficiario": only_digits(titular_dict["cpf"]),
+                "cgcbeneficiario": titular_dict["cpf"]
             }
 
-            resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
+            resp_mat = await httpx_retry("GET", url_mat, headers=headers, params=params)
             contr_data = resp_mat.json()
 
             matricula = contr_data.get("BBA_MATRIC")
-            tenant_dep = contr_data.get("tenantid") or tenantid
+            tenant_dep = contr_data.get("tenantid")
 
             if not matricula:
-                results.append({
-                    "cpf": cpf,
-                    "status": "erro",
-                    "erro": "Titular criado mas matrícula não retornou (BBA_MATRIC vazio)"
-                })
+                results.append({"cpf": cpf, "status": "erro", "erro": "Sem matrícula retornada"})
                 continue
 
-            # === 5️⃣ Incluir DEPENDENTES (se houver)
+            # === 5️⃣ Incluir dependentes (se houver)
             if dependentes_dicts:
                 resp_dep = await medicar_incluir_dependentes(
                     token=token,
                     tenantid=tenant_dep,
                     matricula=matricula,
-                    dependentes=dependentes_dicts,
+                    dependentes=dependentes_dicts
                 )
             else:
-                resp_dep = {"mensagem": "Nenhum dependente encontrado"}
+                resp_dep = {"msg": "Sem dependentes"}
 
             results.append({
                 "cpf": titular_dict["cpf"],
                 "status": "cadastrado",
                 "titular": resp_titular,
-                "dependentes": resp_dep,
+                "dependentes": resp_dep
             })
 
         except Exception as e:
-            log.exception(f"[NOVO CLIENTE] Erro ao processar CPF {cpf}")
             results.append({
                 "cpf": cpf,
                 "status": "erro",
-                "erro": str(e),
-            })
-
-    return {"status": "ok", "resultados": results}
-
-# ============================================================
-# 2) WEBHOOK – ATUALIZAÇÃO / DEPENDENTES (update)
-# ============================================================
-@app.post("/webhook/dependentes")
-async def webhook_dependentes(request: Request):
-    body = await request.json()
-    items = body if isinstance(body, list) else [body]
-
-    log.info(f"[WEBHOOK DEPENDENTES] Recebido: {items}")
-
-    try:
-        token = await medicar_get_token()
-    except Exception as e:
-        return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
-
-    results = []
-
-    for item in items:
-        header = item.get("header") or {}
-        data = item.get("data") or {}
-
-        op = (header.get("operation") or "").lower()
-        if op and op != "update":
-            results.append({
-                "status": "ignorado",
-                "motivo": f"operation diferente de update ({op})",
-                "raw_header": header
-            })
-            continue
-
-        cpf = data.get("cpf")
-        id_cliente = data.get("id")
-
-        if not cpf or not id_cliente:
-            results.append({
-                "status": "erro",
-                "motivo": "Webhook sem cpf ou id_cliente em data",
-                "data": data
-            })
-            continue
-
-        try:
-            # 1️⃣ Verificar plano na TENEX (1 tentativa)
-            carteira = await tenex_get_carteira(cpf)
-            first = carteira[0] if isinstance(carteira, list) and carteira else None
-
-            if not first or not first.get("planos_contratados"):
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": "Cliente sem plano ativo"
-                })
-                continue
-
-            pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), first)
-            id_plano = pessoa["planos_contratados"][0]["id_plano"]
-            plano = PLAN_MAPPING_JSON.get(str(id_plano))
-            if not plano:
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": f"plano {id_plano} não mapeado"
-                })
-                continue
-
-            # 2️⃣ Buscar contatos (dependentes) no TENEX
-            cliente_expand = await tenex_get_cliente_com_contatos(id_cliente)
-            contatos = (cliente_expand or {}).get("contatos", []) if cliente_expand else []
-
-            dependentes_dicts = []
-            for dep in contatos:
-                if str(dep.get("principal")) != "0":
-                    continue
-                if not dep.get("cpf"):
-                    continue
-                dependentes_dicts.append({
-                    "nome": only_ascii_upper(dep.get("nome") or ""),
-                    "cpf": only_digits(dep.get("cpf") or ""),
-                    "data_nascimento": (dep.get("data_nascimento") or "").replace("-", ""),
-                    "sexo": str(dep.get("genero") or "2"),
-                    "nome_mae": "NOME MAE NAO INFORMADO",
-                })
-
-            if not dependentes_dicts:
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": "Nenhum dependente encontrado nos contatos"
-                })
-                continue
-
-            # 3️⃣ Buscar matrícula na Medicar
-            url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
-            headers_medicar = {"Authorization": f"Bearer {token}"}
-            params_mat = {
-                "cnpjmedicar": MEDICAR_CNPJMEDICAR,
-                "grupoempresa": MEDICAR_GRUPOEMPRESA,
-                "contrato": MEDICAR_CONTRATO,
-                "cgcbeneficiario": only_digits(cpf),
-            }
-
-            resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
-            contr_data = resp_mat.json()
-
-            matricula = contr_data.get("BBA_MATRIC")
-            tenant_dep = contr_data.get("tenantid") or TENANT_ID
-
-            if not matricula:
-                results.append({
-                    "cpf": cpf,
-                    "status": "erro",
-                    "erro": "Não foi possível obter matrícula (BBA_MATRIC) para o titular"
-                })
-                continue
-
-            # 4️⃣ Incluir/atualizar dependentes
-            resp_dep = await medicar_incluir_dependentes(
-                token=token,
-                tenantid=tenant_dep,
-                matricula=matricula,
-                dependentes=dependentes_dicts,
-            )
-
-            results.append({
-                "cpf": cpf,
-                "status": "dependentes_atualizados",
-                "dependentes": resp_dep,
-            })
-
-        except Exception as e:
-            log.exception(f"[WEBHOOK DEPENDENTES] Erro ao processar CPF {cpf}")
-            results.append({
-                "cpf": cpf,
-                "status": "erro",
-                "erro": str(e),
-            })
-
-    return {"status": "ok", "resultados": results}
-
-# ============================================================
-# 3) WEBHOOK – EXCLUSÃO (delete)
-# ============================================================
-@app.post("/webhook/exclusao")
-async def webhook_exclusao(request: Request):
-    body = await request.json()
-    items = body if isinstance(body, list) else [body]
-
-    log.info(f"[WEBHOOK EXCLUSAO] Recebido: {items}")
-
-    try:
-        token = await medicar_get_token()
-    except Exception as e:
-        return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
-
-    results = []
-
-    for item in items:
-        header = item.get("header") or {}
-        data = item.get("data") or {}
-
-        op = (header.get("operation") or "").lower()
-        if op and op != "delete":
-            results.append({
-                "status": "ignorado",
-                "motivo": f"operation diferente de delete ({op})",
-                "raw_header": header
-            })
-            continue
-
-        id_cliente = data.get("id")
-
-        if not id_cliente:
-            results.append({
-                "status": "erro",
-                "motivo": "Webhook sem id em data",
-                "data": data
-            })
-            continue
-
-        try:
-            # 1️⃣ Buscar cliente no TENEX para obter CPF
-            cliente = await tenex_get_cliente_com_contatos(id_cliente)
-            if not cliente:
-                results.append({
-                    "id_cliente": id_cliente,
-                    "status": "erro",
-                    "erro": "Cliente não encontrado no TENEX para exclusão"
-                })
-                continue
-
-            cpf = cliente.get("cpf")
-            if not cpf:
-                results.append({
-                    "id_cliente": id_cliente,
-                    "status": "erro",
-                    "erro": "Cliente sem CPF no TENEX"
-                })
-                continue
-
-            # 2️⃣ Verificar plano na TENEX
-            carteira = await tenex_get_carteira(cpf)
-            first = carteira[0] if isinstance(carteira, list) and carteira else None
-
-            if not first or not first.get("planos_contratados"):
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": "Cliente sem plano ativo (nada a cancelar)"
-                })
-                continue
-
-            pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), first)
-            id_plano = pessoa["planos_contratados"][0]["id_plano"]
-            plano = PLAN_MAPPING_JSON.get(str(id_plano))
-            if not plano:
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": f"plano {id_plano} não mapeado (nada a cancelar)"
-                })
-                continue
-
-            # 3️⃣ Buscar matrícula na Medicar
-            url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
-            headers_medicar = {"Authorization": f"Bearer {token}"}
-            params_mat = {
-                "cnpjmedicar": MEDICAR_CNPJMEDICAR,
-                "grupoempresa": MEDICAR_GRUPOEMPRESA,
-                "contrato": MEDICAR_CONTRATO,
-                "cgcbeneficiario": only_digits(cpf),
-            }
-
-            resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
-            contr_data = resp_mat.json()
-
-            subscriber_id = contr_data.get("BBA_MATRIC")
-
-            if not subscriber_id:
-                results.append({
-                    "cpf": cpf,
-                    "status": "erro",
-                    "erro": "Não foi possível obter matrícula (BBA_MATRIC) para cancelamento"
-                })
-                continue
-
-            # 4️⃣ Encerrar matrícula
-            block_date = date.today().strftime("%Y-%m-%d")
-            reason = "000001"
-            login_user = "USUARIO API"
-
-            resp_cancel = await medicar_encerrar_matricula(
-                token=token,
-                subscriber_id=subscriber_id,
-                reason=reason,
-                block_date=block_date,
-                login_user=login_user,
-            )
-
-            results.append({
-                "cpf": cpf,
-                "status": "cancelado",
-                "subscriberId": subscriber_id,
-                "resultado": resp_cancel,
-            })
-
-        except Exception as e:
-            log.exception(f"[WEBHOOK EXCLUSAO] Erro ao processar id_cliente {id_cliente}")
-            results.append({
-                "id_cliente": id_cliente,
-                "status": "erro",
-                "erro": str(e),
+                "erro": str(e)
             })
 
     return {"status": "ok", "resultados": results}
@@ -809,7 +484,7 @@ async def adicionar_dependentes(
 
     try:
         dependentes_list = json.loads(dependentes)
-    except Exception:
+    except:
         return {"status": "erro", "mensagem": "JSON inválido"}
 
     token = await medicar_get_token()
@@ -848,7 +523,7 @@ async def adicionar_dependentes(
     }
 
 # ============================================================
-# CANCELAR – TESTE MANUAL POR CPF
+# CANCELAR
 # ============================================================
 @app.post("/cancelar-por-cpf")
 async def cancelar_por_cpf(
@@ -873,6 +548,7 @@ async def cancelar_por_cpf(
     contract = resp.json()
 
     subscriberId = contract.get("BBA_MATRIC")
+    tenantid = contract.get("tenantid")
 
     if not subscriberId:
         return {"status": "erro", "mensagem": "Sem subscriberId"}
