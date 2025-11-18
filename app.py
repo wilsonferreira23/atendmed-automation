@@ -664,135 +664,92 @@ async def webhook_dependentes(request: Request):
 # ============================================================
 # 3) WEBHOOK – EXCLUSÃO (delete)
 # ============================================================
-@app.post("/webhook/exclusao")
-async def webhook_exclusao(request: Request):
+@app.post("/webhook/delete")
+async def webhook_delete(request: Request):
+    """
+    Webhook exclusivo para EXCLUSÃO de cliente.
+    Mesmo que o TENEX envie operation='update',
+    esta URL SEMPRE significa exclusão.
+    """
+
     body = await request.json()
     items = body if isinstance(body, list) else [body]
 
-    log.info(f"[WEBHOOK EXCLUSAO] Recebido: {items}")
-
-    try:
-        token = await medicar_get_token()
-    except Exception as e:
-        return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
+    log.info(f"Webhook DELETE recebido: {items}")
 
     results = []
 
+    # 1️⃣ Token Medicar
+    try:
+        token = await medicar_get_token()
+    except Exception as e:
+        log.exception("Erro ao obter token da Medicar")
+        return {"status": "erro", "mensagem": str(e)}
+
     for item in items:
-        header = item.get("header") or {}
         data = item.get("data") or {}
-
-        op = (header.get("operation") or "").lower()
-        if op and op != "delete":
-            results.append({
-                "status": "ignorado",
-                "motivo": f"operation diferente de delete ({op})",
-                "raw_header": header
-            })
-            continue
-
+        cpf = only_digits(data.get("cpf") or "")
         id_cliente = data.get("id")
 
-        if not id_cliente:
+        if not cpf:
             results.append({
+                "id": id_cliente,
                 "status": "erro",
-                "motivo": "Webhook sem id em data",
-                "data": data
+                "mensagem": "Webhook DELETE recebido sem CPF"
             })
             continue
 
         try:
-            # 1️⃣ Buscar cliente no TENEX para obter CPF
-            cliente = await tenex_get_cliente_com_contatos(id_cliente)
-            if not cliente:
-                results.append({
-                    "id_cliente": id_cliente,
-                    "status": "erro",
-                    "erro": "Cliente não encontrado no TENEX para exclusão"
-                })
-                continue
-
-            cpf = cliente.get("cpf")
-            if not cpf:
-                results.append({
-                    "id_cliente": id_cliente,
-                    "status": "erro",
-                    "erro": "Cliente sem CPF no TENEX"
-                })
-                continue
-
-            # 2️⃣ Verificar plano na TENEX
-            carteira = await tenex_get_carteira(cpf)
-            first = carteira[0] if isinstance(carteira, list) and carteira else None
-
-            if not first or not first.get("planos_contratados"):
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": "Cliente sem plano ativo (nada a cancelar)"
-                })
-                continue
-
-            pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), first)
-            id_plano = pessoa["planos_contratados"][0]["id_plano"]
-            plano = PLAN_MAPPING_JSON.get(str(id_plano))
-            if not plano:
-                results.append({
-                    "cpf": cpf,
-                    "status": "ignorado",
-                    "motivo": f"plano {id_plano} não mapeado (nada a cancelar)"
-                })
-                continue
-
-            # 3️⃣ Buscar matrícula na Medicar
-            url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
-            headers_medicar = {"Authorization": f"Bearer {token}"}
-            params_mat = {
+            # 2️⃣ Buscar matrícula (subscriberId)
+            url = f"{MEDICAR_BASE_URL}/client/v1/contract"
+            headers = {"Authorization": f"Bearer {token}"}
+            params = {
                 "cnpjmedicar": MEDICAR_CNPJMEDICAR,
                 "grupoempresa": MEDICAR_GRUPOEMPRESA,
                 "contrato": MEDICAR_CONTRATO,
-                "cgcbeneficiario": only_digits(cpf),
+                "cgcbeneficiario": cpf,
             }
 
-            resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
-            contr_data = resp_mat.json()
+            resp = await httpx_retry("GET", url, headers=headers, params=params)
+            contract = resp.json()
 
-            subscriber_id = contr_data.get("BBA_MATRIC")
+            subscriberId = contract.get("BBA_MATRIC")
+            tenantid = contract.get("tenantid")
 
-            if not subscriber_id:
+            if not subscriberId:
                 results.append({
                     "cpf": cpf,
-                    "status": "erro",
-                    "erro": "Não foi possível obter matrícula (BBA_MATRIC) para cancelamento"
+                    "status": "ignorado",
+                    "mensagem": "Cliente não possui matrícula ativa na Medicar"
                 })
                 continue
 
-            # 4️⃣ Encerrar matrícula
+            # 3️⃣ Cancelar matrícula
             block_date = date.today().strftime("%Y-%m-%d")
-            reason = "000001"
-            login_user = "USUARIO API"
 
-            resp_cancel = await medicar_encerrar_matricula(
+            result_cancel = await medicar_encerrar_matricula(
                 token=token,
-                subscriber_id=subscriber_id,
-                reason=reason,
+                subscriber_id=subscriberId,
+                reason="000001",
                 block_date=block_date,
-                login_user=login_user,
+                login_user="WEBHOOK DELETE"
             )
+
+            log.info(f"🔥 Matrícula encerrada (DELETE): CPF={cpf}, subscriberId={subscriberId}")
 
             results.append({
                 "cpf": cpf,
+                "subscriberId": subscriberId,
                 "status": "cancelado",
-                "subscriberId": subscriber_id,
-                "resultado": resp_cancel,
+                "resultado": result_cancel
             })
 
         except Exception as e:
-            log.exception(f"[WEBHOOK EXCLUSAO] Erro ao processar id_cliente {id_cliente}")
+            log.exception(f"Erro ao processar exclusão para CPF {cpf}")
             results.append({
-                "id_cliente": id_cliente,
+                "cpf": cpf,
                 "status": "erro",
-                "erro": str(e),
+                "erro": str(e)
             })
 
     return {"status": "ok", "resultados": results}
