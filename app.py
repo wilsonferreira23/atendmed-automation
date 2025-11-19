@@ -599,33 +599,45 @@ async def webhook_dependentes(request: Request):
     body = await request.json()
     items = body if isinstance(body, list) else [body]
 
-    log.info(f"[WEBHOOK DEPENDENTES] Recebido: {items}")
+    log.info("\n\n======================  📩 WEBHOOK DEPENDENTES RECEBIDO  ======================\n")
+    log.info(json.dumps(items, indent=2, ensure_ascii=False))
 
+    # -------------------------------------------------------------------------
+    # TOKEN MEDICAR
+    # -------------------------------------------------------------------------
     try:
+        log.info("🔑 Obtendo token da Medicar...")
         token = await medicar_get_token()
+        log.info("🔑 Token da Medicar obtido com sucesso.")
     except Exception as e:
+        log.error("❌ ERRO ao obter token da Medicar")
         return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
 
-    # tenant para reentrada (novo-cliente interno)
     tenantid = TENANT_ID
     if not tenantid:
+        log.info("ℹ️ TENANT_ID não definido → buscando tenant padrão...")
         try:
             contr = await medicar_get_contract(token)
             tenantid = contr.get("tenantid")
+            log.info(f"✔️ Tenant padrão obtido: {tenantid}")
         except Exception as e:
-            log.warning(f"Não foi possível obter tenant padrão no webhook/dependentes: {e}")
+            log.warning(f"⚠️ Não foi possível obter tenant padrão: {e}")
             tenantid = None
 
     contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
-
     results = []
 
+    # =========================================================================
+    # PROCESSAR CADA ITEM DO WEBHOOK
+    # =========================================================================
     for item in items:
+
         header = item.get("header") or {}
         data = item.get("data") or {}
 
         op = (header.get("operation") or "").lower()
-        if op and op != "update":
+        if op != "update":
+            log.info(f"⏭️ Ignorado: operation '{op}' ≠ 'update'")
             results.append({
                 "status": "ignorado",
                 "motivo": f"operation diferente de update ({op})",
@@ -637,61 +649,84 @@ async def webhook_dependentes(request: Request):
         id_cliente = data.get("id")
 
         if not cpf or not id_cliente:
+            log.error("❌ Webhook sem cpf ou id_cliente no campo data")
             results.append({
                 "status": "erro",
-                "motivo": "Webhook sem cpf ou id_cliente em data",
+                "motivo": "Webhook sem cpf ou id_cliente",
                 "data": data
             })
             continue
 
         cpf_digits = only_digits(cpf)
 
+        log.info("\n------------------------------")
+        log.info(f"👤 PROCESSANDO CLIENTE {id_cliente} | CPF {cpf_digits}")
+        log.info("------------------------------")
+
         try:
-            # 1️⃣ Buscar cliente + contatos + status no TENEX
+
+            # -----------------------------------------------------------------
+            # 1) BUSCAR CLIENTE + CONTATOS NO TENEX
+            # -----------------------------------------------------------------
+            log.info("📡 Buscando cliente no TENEX (com expand=contatos)...")
             cliente_expand = await tenex_get_cliente_com_contatos(id_cliente)
+
             if not cliente_expand:
+                log.error("❌ Cliente não encontrado no TENEX")
                 results.append({
                     "cpf": cpf_digits,
                     "status": "erro",
-                    "erro": "Cliente não encontrado no TENEX pelo id"
+                    "erro": "Cliente não encontrado no TENEX"
                 })
                 continue
 
             status_tenex = cliente_expand.get("status")
-            contatos = (cliente_expand or {}).get("contatos", []) if cliente_expand else []
+            contatos = cliente_expand.get("contatos", [])
 
-            log.info(f"[WEBHOOK DEPENDENTES] Cliente {id_cliente} status={status_tenex}")
+            log.info(f"📄 Status TENEX do cliente {id_cliente}: {status_tenex}")
+            log.info(f"📄 Total de contatos retornados: {len(contatos)}")
 
-            # 🔴 2️⃣ Se STATUS = 2 → trata como EXCLUSÃO (delete)
+
+            # =================================================================
+            # 🔴 2) STATUS = 2 → FLUXO DE EXCLUSÃO
+            # =================================================================
             if status_tenex == 2:
-                log.info(f"[WEBHOOK DEPENDENTES] Cliente {id_cliente} com status=2 → fluxo de exclusão")
+                log.info("\n🚨🚨🚨 CLIENTE INATIVO — INICIANDO FLUXO DE EXCLUSÃO 🚨🚨🚨\n")
 
-                # Verificar plano antes de cancelar
+                # --------------------------
+                # Verificar plano
+                # --------------------------
+                log.info("📡 Verificando plano via carteira-virtual...")
                 carteira = await tenex_get_carteira(cpf_digits)
                 first = carteira[0] if isinstance(carteira, list) and carteira else None
 
                 if not first or not first.get("planos_contratados"):
+                    log.warning("⚠️ Cliente NÃO possui plano ativo — exclusão ignorada.")
                     results.append({
                         "cpf": cpf_digits,
                         "status": "ignorado",
-                        "motivo": "Cliente sem plano ativo na exclusão"
+                        "motivo": "Cliente sem plano ativo (exclusão)"
                     })
                     continue
 
                 pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == cpf_digits), first)
                 id_plano = pessoa["planos_contratados"][0]["id_plano"]
+
                 plano = PLAN_MAPPING_JSON.get(str(id_plano))
                 if not plano:
+                    log.warning(f"⚠️ Plano {id_plano} não mapeado — exclusão ignorada.")
                     results.append({
                         "cpf": cpf_digits,
                         "status": "ignorado",
-                        "motivo": f"plano {id_plano} não mapeado na exclusão"
+                        "motivo": f"plano {id_plano} não mapeado"
                     })
                     continue
 
+                # --------------------------
                 # Buscar matrícula na Medicar
+                # --------------------------
+                log.info("📡 Buscando matrícula (BBA_MATRIC) no Medicar...")
                 url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
-                headers_medicar = {"Authorization": f"Bearer {token}"}
                 params_mat = {
                     "cnpjmedicar": MEDICAR_CNPJMEDICAR,
                     "grupoempresa": MEDICAR_GRUPOEMPRESA,
@@ -699,19 +734,25 @@ async def webhook_dependentes(request: Request):
                     "cgcbeneficiario": cpf_digits,
                 }
 
-                resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
+                resp_mat = await httpx_retry("GET", url_mat, headers={"Authorization": f"Bearer {token}"}, params=params_mat)
                 contr_data = resp_mat.json()
 
                 subscriber_id = contr_data.get("BBA_MATRIC")
+                log.info(f"📄 Matrícula encontrada: {subscriber_id}")
 
                 if not subscriber_id:
+                    log.warning("⚠️ Cliente ainda não possui matrícula — não há o que cancelar.")
                     results.append({
                         "cpf": cpf_digits,
                         "status": "ignorado",
-                        "motivo": "Não há matrícula (BBA_MATRIC) para cancelar"
+                        "motivo": "Sem matrícula para cancelar"
                     })
                     continue
 
+                # --------------------------
+                # Cancelar matrícula
+                # --------------------------
+                log.info("🔥 Cancelando matrícula no Medicar...")
                 block_date = date.today().strftime("%Y-%m-%d")
 
                 resp_cancel = await medicar_encerrar_matricula(
@@ -722,10 +763,14 @@ async def webhook_dependentes(request: Request):
                     login_user="WEBHOOK DEPENDENTES (EXCLUSAO)"
                 )
 
-                # Salva no banco de excluídos
+                # --------------------------
+                # Salvar no banco
+                # --------------------------
+                log.info("🗄️ Salvando cliente como 'excluído' no banco...")
                 db_salvar_excluido(id_cliente=id_cliente, cpf=cpf_digits)
 
-                log.info(f"[WEBHOOK DEPENDENTES] Matrícula cancelada e cliente {id_cliente} marcado como excluído")
+                log.info("✔️ MATRÍCULA CANCELADA COM SUCESSO!")
+                log.info("✔️ CLIENTE MARCADO COMO EXCLUÍDO NO BANCO")
 
                 results.append({
                     "cpf": cpf_digits,
@@ -735,13 +780,15 @@ async def webhook_dependentes(request: Request):
                 })
                 continue
 
-            # 🟢 3️⃣ STATUS = 1 → cliente ATIVO
-            #    Verificar se ele está marcado como excluído (reentrada)
+            # =================================================================
+            # 🟢 3) STATUS = 1 → CLIENTE ATIVO — VERIFICAR SE É REENTRADA
+            # =================================================================
+            log.info("\n🟢 Cliente ativo — verificando se está em reentrada...")
             excluido = db_buscar_excluido(id_cliente=id_cliente)
-            if excluido:
-                log.info(f"[WEBHOOK DEPENDENTES] Cliente {id_cliente} estava excluído e foi reativado → fluxo de novo cliente")
 
-                # Reaproveita a automação do /webhook/novo-cliente
+            if excluido:
+                log.info("🔄 CLIENTE REATIVADO — Rodando fluxo de NOVO CLIENTE novamente")
+
                 result_item = await process_novo_cliente_item(
                     item=item,
                     token=token,
@@ -749,19 +796,24 @@ async def webhook_dependentes(request: Request):
                     contract_fields=contract_fields
                 )
 
-                # Remove do banco de excluídos
                 db_remover_excluido(id_cliente=id_cliente)
 
                 result_item["reentrada"] = True
                 results.append(result_item)
                 continue
 
-            # 4️⃣ Fluxo NORMAL de atualização de dependentes (cliente ativo)
-            #    Verificar plano na TENEX
+            # =================================================================
+            # 4) FLUXO NORMAL → ATUALIZAR DEPENDENTES
+            # =================================================================
+            log.info("\n🟦 Fluxo normal: atualizando dependentes...")
+
+            # Verificar plano
+            log.info("📡 Verificando plano no TENEX...")
             carteira = await tenex_get_carteira(cpf_digits)
             first = carteira[0] if isinstance(carteira, list) and carteira else None
 
             if not first or not first.get("planos_contratados"):
+                log.warning("⚠️ Cliente sem plano ativo — ignorado")
                 results.append({
                     "cpf": cpf_digits,
                     "status": "ignorado",
@@ -771,8 +823,10 @@ async def webhook_dependentes(request: Request):
 
             pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == cpf_digits), first)
             id_plano = pessoa["planos_contratados"][0]["id_plano"]
+
             plano = PLAN_MAPPING_JSON.get(str(id_plano))
             if not plano:
+                log.warning(f"⚠️ Plano {id_plano} não mapeado")
                 results.append({
                     "cpf": cpf_digits,
                     "status": "ignorado",
@@ -780,7 +834,10 @@ async def webhook_dependentes(request: Request):
                 })
                 continue
 
-            # Montar dependentes a partir dos contatos
+            # --------------------------
+            # Montar dependentes
+            # --------------------------
+            log.info(f"📄 Montando dependentes encontrados nos contatos...")
             dependentes_dicts = []
             for dep in contatos:
                 if str(dep.get("principal")) != "0":
@@ -795,45 +852,60 @@ async def webhook_dependentes(request: Request):
                     "nome_mae": "NOME MAE NAO INFORMADO",
                 })
 
+            log.info(f"📄 Total dependentes válidos: {len(dependentes_dicts)}")
+
             if not dependentes_dicts:
+                log.warning("⚠️ Nenhum dependente encontrado")
                 results.append({
                     "cpf": cpf_digits,
                     "status": "ignorado",
-                    "motivo": "Nenhum dependente encontrado nos contatos"
+                    "motivo": "Nenhum dependente encontrado"
                 })
                 continue
 
-            # Buscar matrícula na Medicar
-            url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
-            headers_medicar = {"Authorization": f"Bearer {token}"}
-            params_mat = {
-                "cnpjmedicar": MEDICAR_CNPJMEDICAR,
-                "grupoempresa": MEDICAR_GRUPOEMPRESA,
-                "contrato": MEDICAR_CONTRATO,
-                "cgcbeneficiario": cpf_digits,
-            }
+            # --------------------------
+            # Buscar matrícula
+            # --------------------------
+            log.info("📡 Buscando matrícula no Medicar...")
+            resp_mat = await httpx_retry(
+                "GET",
+                f"{MEDICAR_BASE_URL}/client/v1/contract",
+                headers={"Authorization": f"Bearer {token}"},
+                params={
+                    "cnpjmedicar": MEDICAR_CNPJMEDICAR,
+                    "grupoempresa": MEDICAR_GRUPOEMPRESA,
+                    "contrato": MEDICAR_CONTRATO,
+                    "cgcbeneficiario": cpf_digits,
+                }
+            )
 
-            resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
             contr_data = resp_mat.json()
-
             matricula = contr_data.get("BBA_MATRIC")
             tenant_dep = contr_data.get("tenantid") or TENANT_ID
 
+            log.info(f"📄 Matrícula: {matricula}")
+
             if not matricula:
+                log.error("❌ Não foi possível obter matrícula no Medicar")
                 results.append({
                     "cpf": cpf_digits,
                     "status": "erro",
-                    "erro": "Não foi possível obter matrícula (BBA_MATRIC) para o titular"
+                    "erro": "Sem BBA_MATRIC para atualização"
                 })
                 continue
 
-            # Incluir/atualizar dependentes
+            # --------------------------
+            # Atualizar dependentes
+            # --------------------------
+            log.info("👨‍👩‍👦 Atualizando dependentes no Medicar...")
             resp_dep = await medicar_incluir_dependentes(
                 token=token,
                 tenantid=tenant_dep,
                 matricula=matricula,
                 dependentes=dependentes_dicts,
             )
+
+            log.info("✔️ Dependentes atualizados com sucesso.")
 
             results.append({
                 "cpf": cpf_digits,
@@ -842,14 +914,16 @@ async def webhook_dependentes(request: Request):
             })
 
         except Exception as e:
-            log.exception(f"[WEBHOOK DEPENDENTES] Erro ao processar CPF {cpf_digits}")
+            log.exception(f"❌ ERRO ao processar CPF {cpf_digits}")
             results.append({
                 "cpf": cpf_digits,
                 "status": "erro",
                 "erro": str(e),
             })
 
+    log.info("\n======================  ✅ FIM DO WEBHOOK DEPENDENTES  ======================\n")
     return {"status": "ok", "resultados": results}
+
 
 # ============================================================
 # ENDPOINT DE TESTE – incluir dependentes manualmente
