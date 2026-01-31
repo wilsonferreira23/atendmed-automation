@@ -3,6 +3,9 @@ import os, json, logging, asyncio, re, sqlite3
 import httpx
 from datetime import datetime, timedelta, date
 from contextlib import contextmanager
+from pydantic import BaseModel
+from typing import List, Optional
+
 
 app = FastAPI(title="Atende Med – Integração TENEX → MEDICAR (async)")
 
@@ -540,6 +543,93 @@ async def process_novo_cliente_item(
             "erro": str(e),
         }
 
+
+
+# ----------------------------
+# Request model (lote)
+# ----------------------------
+class CancelarLoteRequest(BaseModel):
+    cpfs: List[str]
+    reason: str = "000001"
+    loginUser: str = "USUARIO API"
+    blockDate: Optional[str] = None  # se None, usa hoje
+    concurrency: int = 5             # limite de paralelismo (ajuste com cuidado)
+
+
+# ----------------------------
+# Core: cancela 1 CPF
+# ----------------------------
+async def cancelar_por_cpf_core(
+    token: str,
+    cpf: str,
+    reason: str,
+    login_user: str,
+    block_date: str
+) -> dict:
+    cpf_digits = only_digits(cpf)
+
+    # 1) Buscar matrícula (BBA_MATRIC)
+    url = f"{MEDICAR_BASE_URL}/client/v1/contract"
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {
+        "cnpjmedicar": MEDICAR_CNPJMEDICAR,
+        "grupoempresa": MEDICAR_GRUPOEMPRESA,
+        "contrato": MEDICAR_CONTRATO,
+        "cgcbeneficiario": cpf_digits
+    }
+
+    try:
+        resp = await httpx_retry("GET", url, headers=headers, params=params)
+        contract = resp.json()
+    except Exception as e:
+        return {
+            "cpf": cpf_digits,
+            "status": "erro",
+            "etapa": "buscar_matricula",
+            "erro": str(e)
+        }
+
+    subscriberId = contract.get("BBA_MATRIC")
+    tenantid = contract.get("tenantid")
+
+    if not subscriberId:
+        return {
+            "cpf": cpf_digits,
+            "status": "ignorado",
+            "motivo": "Sem subscriberId (BBA_MATRIC) — cliente não tem matrícula ativa na Medicar",
+            "tenantid": tenantid,
+            "raw_contract": contract
+        }
+
+    # 2) Cancelar matrícula (blockProtocol)
+    try:
+        result = await medicar_encerrar_matricula(
+            token=token,
+            subscriber_id=subscriberId,
+            reason=reason,
+            block_date=block_date,
+            login_user=login_user
+        )
+        return {
+            "cpf": cpf_digits,
+            "status": "cancelado",
+            "subscriberId": subscriberId,
+            "tenantid": tenantid,
+            "resultado": result
+        }
+    except Exception as e:
+        return {
+            "cpf": cpf_digits,
+            "status": "erro",
+            "etapa": "cancelar_matricula",
+            "subscriberId": subscriberId,
+            "tenantid": tenantid,
+            "erro": str(e)
+        }
+
+
+
+
 # ============================================================
 # 1) WEBHOOK – NOVO CLIENTE (insert)
 # ============================================================
@@ -619,7 +709,7 @@ async def webhook_dependentes(request: Request):
         try:
             contr = await medicar_get_contract(token)
             tenantid = contr.get("tenantid")
-            log.info(f"✔️ Tenant padrão obtido: {tenantid}")
+            log.info(f"Tenant padrão obtido: {tenantid}")
         except Exception as e:
             log.warning(f"⚠️ Não foi possível obter tenant padrão: {e}")
             tenantid = None
@@ -975,6 +1065,74 @@ async def adicionar_dependentes(
         "resultado": result
     }
 
+
+# ----------------------------
+# Endpoint: cancelar em lote
+# ----------------------------
+@app.post("/cancelar-em-lote")
+async def cancelar_em_lote(payload: CancelarLoteRequest):
+    """
+    Cancela vários CPFs de uma vez na Medicar:
+    - Obtém token 1 vez
+    - Para cada CPF: busca matrícula / cancela
+    - Executa com limite de concorrência para não sobrecarregar a API
+    """
+
+    # validação mínima
+    cpfs = [c for c in payload.cpfs if only_digits(c)]
+    if not cpfs:
+        return {"status": "erro", "mensagem": "Lista de CPFs vazia ou inválida"}
+
+    # blockDate
+    block_date = payload.blockDate or date.today().strftime("%Y-%m-%d")
+
+    # 1) Token (uma vez)
+    try:
+        token = await medicar_get_token()
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
+
+    sem = asyncio.Semaphore(max(1, min(payload.concurrency, 20)))  # trava em 1..20
+
+    async def worker(cpf: str):
+        async with sem:
+            return await cancelar_por_cpf_core(
+                token=token,
+                cpf=cpf,
+                reason=payload.reason,
+                login_user=payload.loginUser,
+                block_date=block_date
+            )
+
+    # 2) Executa em paralelo (com limite)
+    tasks = [worker(cpf) for cpf in cpfs]
+    results = await asyncio.gather(*tasks)
+
+    # 3) Resumo
+    total = len(results)
+    cancelados = sum(1 for r in results if r.get("status") == "cancelado")
+    ignorados = sum(1 for r in results if r.get("status") == "ignorado")
+    erros = sum(1 for r in results if r.get("status") == "erro")
+
+    return {
+        "status": "ok",
+        "blockDate": block_date,
+        "reason": payload.reason,
+        "loginUser": payload.loginUser,
+        "resumo": {
+            "total": total,
+            "cancelados": cancelados,
+            "ignorados": ignorados,
+            "erros": erros
+        },
+        "resultados": results
+    }
+
+
+
+
+
+
 # ============================================================
 # CANCELAR – TESTE MANUAL POR CPF
 # ============================================================
@@ -984,40 +1142,36 @@ async def cancelar_por_cpf(
     reason: str = Query("000001"),
     loginUser: str = Query("USUARIO API")
 ):
-    cpf_digits = only_digits(cpf)
-    token = await medicar_get_token()
+    try:
+        token = await medicar_get_token()
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
 
-    # Buscar matrícula
-    url = f"{MEDICAR_BASE_URL}/client/v1/contract"
-    headers = {"Authorization": f"Bearer {token}"}
-    params = {
-        "cnpjmedicar": MEDICAR_CNPJMEDICAR,
-        "grupoempresa": MEDICAR_GRUPOEMPRESA,
-        "contrato": MEDICAR_CONTRATO,
-        "cgcbeneficiario": cpf_digits
-    }
+    block_date = date.today().strftime("%Y-%m-%d")
 
-    resp = await httpx_retry("GET", url, headers=headers, params=params)
-    contract = resp.json()
-
-    subscriberId = contract.get("BBA_MATRIC")
-
-    if not subscriberId:
-        return {"status": "erro", "mensagem": "Sem subscriberId"}
-
-    result = await medicar_encerrar_matricula(
+    result = await cancelar_por_cpf_core(
         token=token,
-        subscriber_id=subscriberId,
+        cpf=cpf,
         reason=reason,
-        block_date=date.today().strftime("%Y-%m-%d"),
-        login_user=loginUser
+        login_user=loginUser,
+        block_date=block_date
     )
 
+    # manter compatibilidade de resposta antiga
+    if result.get("status") == "cancelado":
+        return {
+            "status": "ok",
+            "cpf": result["cpf"],
+            "subscriberId": result["subscriberId"],
+            "resultado": result["resultado"]
+        }
+
+    # se não cancelou, devolve o motivo com clareza
     return {
-        "status": "ok",
-        "cpf": cpf_digits,
-        "subscriberId": subscriberId,
-        "resultado": result
+        "status": "erro" if result.get("status") == "erro" else "ignorado",
+        "cpf": result.get("cpf"),
+        "mensagem": result.get("motivo") or result.get("erro") or "Não foi possível cancelar",
+        "detalhes": result
     }
 
 # ============================================================
