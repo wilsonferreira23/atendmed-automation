@@ -44,7 +44,7 @@ MEDICAR_CONTRACT_FIELDS_JSON = os.getenv("MEDICAR_CONTRACT_FIELDS_JSON", "")
 
 PLAN_MAPPING_JSON = json.loads(os.getenv(
     "PLAN_MAPPING_JSON",
-    '{"34":{"codpro":"0066","versao":"001"},"35":{"codpro":"0066","versao":"001"}}'
+    '{"31":{"codpro":"0066","versao":"001"},"32":{"codpro":"0066","versao":"001"}}'
 ))
 
 HTTP_TIMEOUT = 25.0
