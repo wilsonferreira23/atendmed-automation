@@ -3,3 +3,5 @@ uvicorn
 requests
 tenacity
 httpx
+aiofiles
+python-multipart

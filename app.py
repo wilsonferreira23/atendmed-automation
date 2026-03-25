@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Request, Query
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os, json, logging, asyncio, re, sqlite3
 import httpx
 from datetime import datetime, timedelta, date
@@ -8,6 +10,11 @@ from typing import List, Optional
 
 
 app = FastAPI(title="Atende Med – Integração TENEX → MEDICAR (async)")
+
+# Servir arquivos estáticos (painel admin)
+_static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 # ============================================================
 # LOGS
@@ -1198,3 +1205,11 @@ async def cancelar_por_cpf(
 @app.get("/health")
 async def health():
     return {"status": "online", "servico": "TENEX → MEDICAR (async)"}
+
+# ============================================================
+# PAINEL ADMIN (rota raíz)
+# ============================================================
+@app.get("/")
+async def painel():
+    index = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    return FileResponse(index)
