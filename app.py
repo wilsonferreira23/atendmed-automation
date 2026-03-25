@@ -24,6 +24,16 @@ def only_digits(s: str) -> str:
 def only_ascii_upper(s: str) -> str:
     return (s or "").encode("ascii", errors="ignore").decode().upper().strip()
 
+def valid_date_or_today(s: str | None) -> str:
+    """Valida se s está no formato yyyy-mm-dd. Se não, retorna a data de hoje."""
+    if s:
+        try:
+            datetime.strptime(s, "%Y-%m-%d")
+            return s
+        except ValueError:
+            log.warning(f"[DATA] Valor inválido para blockDate: '{s}' → usando data de hoje")
+    return date.today().strftime("%Y-%m-%d")
+
 # ============================================================
 # CONFIG
 # ============================================================
@@ -1090,8 +1100,9 @@ async def cancelar_em_lote(payload: CancelarLoteRequest):
     if not cpfs:
         return {"status": "erro", "mensagem": "Lista de CPFs vazia ou inválida"}
 
-    # blockDate
-    block_date = payload.blockDate or date.today().strftime("%Y-%m-%d")
+    # blockDate – valida o formato yyyy-mm-dd; qualquer valor inválido (inclusive
+    # o literal "string" enviado pelo Swagger) é substituído pela data de hoje.
+    block_date = valid_date_or_today(payload.blockDate)
 
     # 1) Token (uma vez)
     try:
