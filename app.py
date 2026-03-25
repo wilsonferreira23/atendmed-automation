@@ -378,10 +378,15 @@ async def medicar_encerrar_matricula(
 
     url = f"{MEDICAR_BASE_URL}/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol"
 
+    # Garantir que tenantid não é None
+    tenantid = TENANT_ID
+    if not tenantid:
+        raise RuntimeError("TENANT_ID não configurado — impossível cancelar matrícula")
+
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
-        "tenantid": TENANT_ID
+        "tenantid": tenantid
     }
 
     payload = {
@@ -391,13 +396,15 @@ async def medicar_encerrar_matricula(
         "loginUser": login_user
     }
 
+    log.info(f"[CANCELAR] Enviando payload: {json.dumps(payload)} | tenantid: {tenantid}")
+
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
         resp = await client.post(url, headers=headers, json=payload)
 
     try:
         resp.raise_for_status()
     except Exception:
-        log.error(f"[ERRO CANCELAR] {resp.text}")
+        log.error(f"[ERRO CANCELAR] Status: {resp.status_code} | Payload enviado: {json.dumps(payload)} | Resposta: {resp.text}")
         raise
 
     return resp.json()
@@ -726,11 +733,11 @@ async def webhook_dependentes(request: Request):
         data = item.get("data") or {}
 
         op = (header.get("operation") or "").lower()
-        if op != "update":
-            log.info(f"⏭️ Ignorado: operation '{op}' ≠ 'update'")
+        if op not in ("update", "delete"):
+            log.info(f"⏭️ Ignorado: operation '{op}' ≠ 'update' ou 'delete'")
             results.append({
                 "status": "ignorado",
-                "motivo": f"operation diferente de update ({op})",
+                "motivo": f"operation diferente de update/delete ({op})",
                 "raw_header": header
             })
             continue
@@ -770,7 +777,12 @@ async def webhook_dependentes(request: Request):
                 })
                 continue
 
-            status_tenex = cliente_expand.get("status")
+            # Se operation é "delete", força o fluxo de exclusão diretamente
+            if op == "delete":
+                status_tenex = 2
+                log.info(f"📄 Operation='delete' → forçando status_tenex=2 (exclusão)")
+            else:
+                status_tenex = cliente_expand.get("status")
             contatos = cliente_expand.get("contatos", [])
 
             log.info(f"📄 Status TENEX do cliente {id_cliente}: {status_tenex}")
