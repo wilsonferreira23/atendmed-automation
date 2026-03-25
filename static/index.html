@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AtendMed – Painel de Cancelamentos</title>
+  <title>AtendMed BH – Cancelamentos Medicar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
@@ -16,11 +16,12 @@
       --border-hover: #333;
       --text: #ededed;
       --muted: #888;
-      --red: #ff4444;
-      --red-dark: #cc0000;
+      --red: #e53935;
+      --red-dark: #b71c1c;
+      --teal: #2ec4a5;
       --green: #00c851;
       --yellow: #ffbb33;
-      --accent: #5865f2;
+      --accent: #2ec4a5;
       --radius: 10px;
     }
 
@@ -32,6 +33,18 @@
       display: flex;
       flex-direction: column;
     }
+
+    /* ── LOGO SVG ── */
+    .atendmed-logo {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .atendmed-logo svg { height: 36px; width: auto; }
+    .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+    .logo-text .brand { font-size: 18px; font-weight: 700; }
+    .logo-text .brand .atend { color: var(--teal); }
+    .logo-text .brand .med { color: var(--text); }
+    .logo-text .brand .bh { color: var(--text); font-weight: 800; }
+    .logo-text .tagline { font-size: 9px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
 
     /* ── LOGIN ── */
     #login-screen {
@@ -45,40 +58,33 @@
       border-radius: 16px;
       padding: 48px 40px;
       width: 380px;
-      box-shadow: 0 0 60px rgba(0,0,0,.6);
+      box-shadow: 0 0 80px rgba(46,196,165,.05);
     }
-    .login-logo {
-      display: flex; align-items: center; gap: 10px;
-      margin-bottom: 32px;
-    }
-    .login-logo .dot {
-      width: 32px; height: 32px; border-radius: 8px;
-      background: linear-gradient(135deg, var(--red), #ff8800);
-    }
-    .login-logo span { font-size: 20px; font-weight: 700; }
-    .login-card h2 { font-size: 24px; font-weight: 600; margin-bottom: 6px; }
+    .login-card .atendmed-logo { margin-bottom: 32px; }
+    .login-card h2 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
     .login-card p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
     label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
     input[type="password"], input[type="text"], textarea {
       width: 100%; background: #1a1a1a; border: 1px solid var(--border);
-      color: var(--text); border-radius: var(--radius); padding: 10px 14px;
-      font-size: 14px; font-family: inherit; outline: none;
+      color: var(--text); border-radius: var(--radius); padding: 11px 14px;
+      font-size: 15px; font-family: inherit; outline: none;
       transition: border .2s;
     }
     input[type="password"]:focus, input[type="text"]:focus, textarea:focus {
-      border-color: var(--accent);
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(46,196,165,.1);
     }
-    #login-error {
-      color: var(--red); font-size: 13px; margin-top: 10px; display: none;
-    }
+    #login-error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
+
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       padding: 10px 18px; border-radius: var(--radius); font-size: 14px;
       font-weight: 600; cursor: pointer; border: none; transition: all .2s;
       font-family: inherit;
     }
-    .btn-primary { background: var(--text); color: #000; width: 100%; margin-top: 18px; height: 40px; }
-    .btn-primary:hover { background: #ccc; }
+    .btn-primary { background: var(--teal); color: #000; width: 100%; margin-top: 18px; height: 44px; font-size: 15px; }
+    .btn-primary:hover { background: #26a98e; }
     .btn-danger { background: var(--red); color: #fff; }
     .btn-danger:hover { background: var(--red-dark); }
     .btn-danger:disabled { opacity: .5; cursor: not-allowed; }
@@ -88,22 +94,19 @@
     /* ── NAVBAR ── */
     nav {
       border-bottom: 1px solid var(--border);
-      padding: 0 32px; height: 56px;
+      padding: 0 32px; height: 58px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .nav-logo { display: flex; align-items: center; gap: 10px; }
-    .nav-logo .dot { width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(135deg, var(--red), #ff8800); }
-    .nav-logo span { font-size: 16px; font-weight: 700; }
     .nav-badge {
       background: #1a1a1a; border: 1px solid var(--border); border-radius: 20px;
-      padding: 4px 12px; font-size: 12px; color: var(--muted); margin-left: 12px;
+      padding: 3px 12px; font-size: 11px; color: var(--muted); margin-left: 14px;
     }
     .nav-right { display: flex; align-items: center; gap: 10px; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
     /* ── MAIN ── */
-    main { flex: 1; padding: 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
+    main { flex: 1; padding: 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
 
     h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
     .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
@@ -113,14 +116,15 @@
 
     .card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 24px;
+      border-radius: var(--radius); padding: 28px;
       transition: border .2s;
     }
     .card:hover { border-color: var(--border-hover); }
-    .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-    .card .desc { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
-    .card .field { margin-bottom: 14px; }
-    textarea { resize: vertical; min-height: 120px; }
+    .card-icon { font-size: 28px; margin-bottom: 14px; }
+    .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .card .desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+    .card .field { margin-bottom: 16px; }
+    textarea { resize: vertical; min-height: 130px; font-size: 14px; }
 
     /* ── RESULTS ── */
     #results-section { display: none; }
@@ -131,29 +135,28 @@
     .results-header h3 { font-size: 15px; font-weight: 600; }
     .summary-pills { display: flex; gap: 10px; flex-wrap: wrap; }
     .pill {
-      border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600;
-      border: 1px solid;
+      border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; border: 1px solid;
     }
     .pill.green { background: rgba(0,200,81,.1); border-color: rgba(0,200,81,.3); color: var(--green); }
-    .pill.red { background: rgba(255,68,68,.1); border-color: rgba(255,68,68,.3); color: var(--red); }
-    .pill.yellow { background: rgba(255,187,51,.1); border-color: rgba(255,187,51,.3); color: var(--yellow); }
+    .pill.red   { background: rgba(229,57,53,.1); border-color: rgba(229,57,53,.3); color: var(--red); }
+    .pill.yellow{ background: rgba(255,187,51,.1); border-color: rgba(255,187,51,.3); color: var(--yellow); }
 
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     thead th {
       text-align: left; padding: 10px 14px; color: var(--muted); font-weight: 500;
-      border-bottom: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+      border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
     }
     tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
     tbody tr:hover { background: #141414; }
-    tbody td { padding: 12px 14px; }
+    tbody td { padding: 13px 14px; }
     .badge {
       display: inline-flex; align-items: center; gap: 5px;
       border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; border: 1px solid;
     }
     .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-    .badge.ok { background: rgba(0,200,81,.1); border-color: rgba(0,200,81,.3); color: var(--green); }
-    .badge.erro { background: rgba(255,68,68,.1); border-color: rgba(255,68,68,.3); color: var(--red); }
-    .badge.ignorado { background: rgba(255,187,51,.1); border-color: rgba(255,187,51,.3); color: var(--yellow); }
+    .badge.ok      { background: rgba(0,200,81,.1); border-color: rgba(0,200,81,.3); color: var(--green); }
+    .badge.erro    { background: rgba(229,57,53,.1); border-color: rgba(229,57,53,.3); color: var(--red); }
+    .badge.ignorado{ background: rgba(255,187,51,.1); border-color: rgba(255,187,51,.3); color: var(--yellow); }
 
     .spinner {
       display: none; width: 16px; height: 16px;
@@ -163,13 +166,13 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .error-msg {
-      background: rgba(255,68,68,.1); border: 1px solid rgba(255,68,68,.3);
+      background: rgba(229,57,53,.1); border: 1px solid rgba(229,57,53,.3);
       color: var(--red); border-radius: var(--radius); padding: 12px 16px;
       font-size: 13px; margin-top: 10px; display: none;
     }
-    .cpf-detail { font-family: monospace; font-size: 12px; color: var(--muted); }
-    .subscriber { font-family: monospace; font-size: 12px; }
-    .msg-col { max-width: 280px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cpf-col    { font-family: monospace; font-size: 13px; }
+    .sub-col    { font-family: monospace; font-size: 12px; color: var(--muted); }
+    .msg-col    { max-width: 260px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -177,12 +180,31 @@
 <!-- ════ LOGIN ════ -->
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo">
-      <div class="dot"></div>
-      <span>AtendMed</span>
+    <!-- Logo AtendMed BH -->
+    <div class="atendmed-logo">
+      <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Cruz verde -->
+        <rect x="20" y="8" width="20" height="44" rx="4" fill="#2ec4a5" opacity=".2"/>
+        <rect x="8" y="20" width="44" height="20" rx="4" fill="#2ec4a5" opacity=".2"/>
+        <rect x="24" y="12" width="12" height="36" rx="3" fill="#2ec4a5"/>
+        <rect x="12" y="24" width="36" height="12" rx="3" fill="#2ec4a5"/>
+        <!-- Estetoscópio simplificado -->
+        <circle cx="44" cy="44" r="6" stroke="#1a1a1a" stroke-width="2.5" fill="none"/>
+        <circle cx="44" cy="44" r="2.5" fill="#2ec4a5"/>
+        <path d="M38 44 Q30 44 30 36 Q30 28 38 28 L22 28" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <circle cx="22" cy="28" r="3" fill="#1a1a1a"/>
+        <circle cx="18" cy="28" r="3" fill="#1a1a1a"/>
+      </svg>
+      <div class="logo-text">
+        <div class="brand">
+          <span class="atend">Atend </span><span class="med">Med </span><span class="bh">BH</span>
+        </div>
+        <div class="tagline">Medicina Acessível</div>
+      </div>
     </div>
-    <h2>Acesso Restrito</h2>
-    <p>Painel de Cancelamentos — Medicar</p>
+
+    <h2>Área Restrita</h2>
+    <p>Digite sua senha para acessar o painel de cancelamentos.</p>
     <div class="field">
       <label for="senha">Senha</label>
       <input type="password" id="senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
@@ -196,59 +218,67 @@
 <div id="app" style="display:none; flex-direction:column; min-height:100vh;">
 
   <nav>
-    <div class="nav-logo">
-      <div class="dot"></div>
-      <span>AtendMed</span>
+    <div style="display:flex;align-items:center;">
+      <div class="atendmed-logo">
+        <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" style="height:28px;">
+          <rect x="24" y="12" width="12" height="36" rx="3" fill="#2ec4a5"/>
+          <rect x="12" y="24" width="36" height="12" rx="3" fill="#2ec4a5"/>
+          <circle cx="44" cy="44" r="6" stroke="#333" stroke-width="2.5" fill="none"/>
+          <circle cx="44" cy="44" r="2.5" fill="#2ec4a5"/>
+          <path d="M38 44 Q30 44 30 36 Q30 28 38 28 L22 28" stroke="#444" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <circle cx="22" cy="28" r="3" fill="#444"/>
+          <circle cx="18" cy="28" r="3" fill="#444"/>
+        </svg>
+        <div class="logo-text">
+          <div class="brand" style="font-size:15px;">
+            <span class="atend">Atend </span><span class="med">Med </span><span class="bh">BH</span>
+          </div>
+        </div>
+      </div>
       <span class="nav-badge">Painel Medicar</span>
     </div>
     <div class="nav-right">
-      <div class="status-dot" title="API online"></div>
-      <span style="font-size:12px;color:var(--muted)">API Online</span>
+      <div class="status-dot" title="Sistema online"></div>
+      <span style="font-size:12px;color:var(--muted)">Online</span>
       <button class="btn btn-outline" style="height:34px;font-size:13px;" onclick="doLogout()">Sair</button>
     </div>
   </nav>
 
   <main>
     <h1>Cancelamentos Medicar</h1>
-    <p class="subtitle">Cancele planos manualmente por CPF ou em lote.</p>
+    <p class="subtitle">Cancele o plano de um paciente pelo CPF.</p>
 
     <div class="grid">
 
       <!-- Card 1: Individual -->
       <div class="card">
-        <h3>Cancelar CPF Individual</h3>
-        <p class="desc">Busca a matrícula e cancela o beneficiário na Medicar.</p>
+        <div class="card-icon">👤</div>
+        <h3>Cancelar um Paciente</h3>
+        <p class="desc">Digite o CPF do paciente e clique em cancelar. O sistema encontra e remove o plano automaticamente.</p>
         <div class="field">
-          <label for="cpf-single">CPF</label>
+          <label for="cpf-single">CPF do Paciente</label>
           <input type="text" id="cpf-single" placeholder="000.000.000-00"
             oninput="formatCPF(this)"
             onkeydown="if(event.key==='Enter')cancelarIndividual()" />
         </div>
-        <div class="field">
-          <label for="reason-single">Código de Motivo</label>
-          <input type="text" id="reason-single" value="000001" placeholder="000001" />
-        </div>
         <div id="err-single" class="error-msg"></div>
-        <button id="btn-single" class="btn btn-danger" style="width:100%;margin-top:4px;height:40px;" onclick="cancelarIndividual()">
+        <button id="btn-single" class="btn btn-danger" style="width:100%;margin-top:4px;height:44px;font-size:15px;" onclick="cancelarIndividual()">
           <span class="spinner" id="spin-single"></span>
-          Cancelar na Medicar
+          Cancelar Plano
         </button>
       </div>
 
       <!-- Card 2: Lote -->
       <div class="card">
-        <h3>Cancelar em Lote</h3>
-        <p class="desc">Um CPF por linha. Executa em paralelo com limite de concorrência.</p>
+        <div class="card-icon">👥</div>
+        <h3>Cancelar Vários Pacientes</h3>
+        <p class="desc">Cole a lista de CPFs abaixo, um por linha. O sistema cancela todos de uma vez.</p>
         <div class="field">
-          <label for="cpf-lote">CPFs (um por linha)</label>
+          <label for="cpf-lote">Lista de CPFs (um por linha)</label>
           <textarea id="cpf-lote" placeholder="000.000.000-00&#10;111.111.111-11&#10;222.222.222-22"></textarea>
         </div>
-        <div class="field">
-          <label for="reason-lote">Código de Motivo</label>
-          <input type="text" id="reason-lote" value="000001" placeholder="000001" />
-        </div>
         <div id="err-lote" class="error-msg"></div>
-        <button id="btn-lote" class="btn btn-danger" style="width:100%;margin-top:4px;height:40px;" onclick="cancelarLote()">
+        <button id="btn-lote" class="btn btn-danger" style="width:100%;margin-top:4px;height:44px;font-size:15px;" onclick="cancelarLote()">
           <span class="spinner" id="spin-lote"></span>
           Cancelar Todos
         </button>
@@ -259,7 +289,7 @@
     <!-- Resultados -->
     <div id="results-section" class="card">
       <div class="results-header">
-        <h3>Resultados</h3>
+        <h3>Resultado</h3>
         <div class="summary-pills" id="summary-pills"></div>
       </div>
       <div style="overflow-x:auto;">
@@ -267,9 +297,9 @@
           <thead>
             <tr>
               <th>CPF</th>
-              <th>Status</th>
-              <th>SubscriberId</th>
-              <th>Mensagem</th>
+              <th>Situação</th>
+              <th>Nº Matrícula</th>
+              <th>Observação</th>
             </tr>
           </thead>
           <tbody id="results-body"></tbody>
@@ -309,10 +339,8 @@
   }
 
   function setLoading(btnId, spinId, on) {
-    const btn = document.getElementById(btnId);
-    const sp = document.getElementById(spinId);
-    btn.disabled = on;
-    sp.style.display = on ? 'block' : 'none';
+    document.getElementById(btnId).disabled = on;
+    document.getElementById(spinId).style.display = on ? 'block' : 'none';
   }
 
   function showError(id, msg) {
@@ -320,9 +348,7 @@
     el.textContent = msg;
     el.style.display = 'block';
   }
-  function clearError(id) {
-    document.getElementById(id).style.display = 'none';
-  }
+  function clearError(id) { document.getElementById(id).style.display = 'none'; }
 
   function renderResults(items) {
     const section = document.getElementById('results-section');
@@ -340,23 +366,27 @@
       else ign++;
 
       const badgeClass = st === 'cancelado' ? 'ok' : st === 'erro' ? 'erro' : 'ignorado';
-      const label = st === 'cancelado' ? 'Cancelado' : st === 'erro' ? 'Erro' : 'Ignorado';
+      const labelMap = { cancelado: '✓ Cancelado', erro: '✕ Erro', ignorado: '⊘ Não encontrado' };
+      const label = labelMap[st] || st;
       const subId = r.subscriberId || r.detalhes?.subscriberId || '—';
-      const msg = r.mensagem || r.motivo || r.erro || r.resultado?.message || '—';
+      const rawMsg = r.mensagem || r.motivo || r.erro || r.resultado?.message || '';
+      const msg = rawMsg.includes('em análise') ? 'Já existe cancelamento em andamento' :
+                  rawMsg.includes('Sem subscriberId') ? 'Paciente não possui plano ativo' :
+                  rawMsg || '—';
 
       tbody.insertAdjacentHTML('beforeend', `
         <tr>
-          <td class="cpf-detail">${r.cpf || '—'}</td>
+          <td class="cpf-col">${r.cpf || '—'}</td>
           <td><span class="badge ${badgeClass}">${label}</span></td>
-          <td class="subscriber">${subId}</td>
+          <td class="sub-col">${subId}</td>
           <td class="msg-col" title="${msg}">${msg}</td>
         </tr>
       `);
     }
 
     pills.innerHTML = `
-      ${ok > 0 ? `<span class="pill green">✓ ${ok} Cancelado${ok>1?'s':''}</span>` : ''}
-      ${ign > 0 ? `<span class="pill yellow">⊘ ${ign} Ignorado${ign>1?'s':''}</span>` : ''}
+      ${ok  > 0 ? `<span class="pill green">✓ ${ok} Cancelado${ok>1?'s':''}</span>` : ''}
+      ${ign > 0 ? `<span class="pill yellow">⊘ ${ign} Não encontrado${ign>1?'s':''}</span>` : ''}
       ${err > 0 ? `<span class="pill red">✕ ${err} Erro${err>1?'s':''}</span>` : ''}
     `;
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -365,26 +395,22 @@
   async function cancelarIndividual() {
     clearError('err-single');
     const cpf = document.getElementById('cpf-single').value.trim();
-    const reason = document.getElementById('reason-single').value.trim() || '000001';
-    if (!cpf) return showError('err-single', 'Informe o CPF.');
+    if (!cpf) return showError('err-single', 'Informe o CPF do paciente.');
 
     setLoading('btn-single', 'spin-single', true);
     try {
-      const params = new URLSearchParams({ cpf, reason, loginUser: 'PAINEL WEB' });
+      const params = new URLSearchParams({ cpf, reason: '000001', loginUser: 'PAINEL WEB' });
       const res = await fetch(`/cancelar-por-cpf?${params}`, { method: 'POST' });
       const data = await res.json();
-
-      // normaliza resposta individual p/ array
       const cpfDigits = cpf.replace(/\D/g,'');
-      const row = {
+      renderResults([{
         cpf: cpfDigits,
         status: data.status === 'ok' ? 'cancelado' : (data.status || 'erro'),
         subscriberId: data.subscriberId,
         mensagem: data.mensagem || data.resultado?.message || ''
-      };
-      renderResults([row]);
+      }]);
     } catch (e) {
-      showError('err-single', 'Erro de conexão com a API.');
+      showError('err-single', 'Não foi possível conectar ao sistema. Tente novamente.');
     } finally {
       setLoading('btn-single', 'spin-single', false);
     }
@@ -393,9 +419,7 @@
   async function cancelarLote() {
     clearError('err-lote');
     const raw = document.getElementById('cpf-lote').value.trim();
-    const reason = document.getElementById('reason-lote').value.trim() || '000001';
     if (!raw) return showError('err-lote', 'Informe ao menos um CPF.');
-
     const cpfs = raw.split(/[\n,;]+/).map(c => c.trim()).filter(Boolean);
     if (!cpfs.length) return showError('err-lote', 'Nenhum CPF válido encontrado.');
 
@@ -404,16 +428,13 @@
       const res = await fetch('/cancelar-em-lote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cpfs, reason, loginUser: 'PAINEL WEB', concurrency: 5 })
+        body: JSON.stringify({ cpfs, reason: '000001', loginUser: 'PAINEL WEB', concurrency: 5 })
       });
       const data = await res.json();
-      if (data.resultados) {
-        renderResults(data.resultados);
-      } else {
-        showError('err-lote', data.mensagem || 'Erro desconhecido na API.');
-      }
+      if (data.resultados) renderResults(data.resultados);
+      else showError('err-lote', data.mensagem || 'Erro ao processar. Tente novamente.');
     } catch (e) {
-      showError('err-lote', 'Erro de conexão com a API.');
+      showError('err-lote', 'Não foi possível conectar ao sistema. Tente novamente.');
     } finally {
       setLoading('btn-lote', 'spin-lote', false);
     }
