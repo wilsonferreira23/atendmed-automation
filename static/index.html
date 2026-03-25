@@ -10,19 +10,19 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0a0a0a;
-      --surface: #111111;
-      --border: #1f1f1f;
-      --border-hover: #333;
-      --text: #ededed;
-      --muted: #888;
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --border: #eaeaea;
+      --border-hover: #ccc;
+      --text: #000000;
+      --muted: #666;
       --red: #e53935;
       --red-dark: #b71c1c;
       --teal: #2ec4a5;
       --green: #00c851;
-      --yellow: #ffbb33;
+      --yellow: #f5a623;
       --accent: #2ec4a5;
-      --radius: 10px;
+      --radius: 8px;
     }
 
     body {
@@ -49,57 +49,58 @@
     /* ── LOGIN ── */
     #login-screen {
       position: fixed; inset: 0; z-index: 100;
-      background: var(--bg);
+      background: #fafafa;
       display: flex; align-items: center; justify-content: center;
     }
     .login-card {
-      background: var(--surface);
+      background: #fff;
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 12px;
       padding: 48px 40px;
-      width: 380px;
-      box-shadow: 0 0 80px rgba(46,196,165,.05);
+      width: 400px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
     }
     .login-card .atendmed-logo { margin-bottom: 32px; }
-    .login-card h2 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
-    .login-card p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+    .login-card h2 { font-size: 24px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.02em; }
+    .login-card p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
 
-    label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+    label { display: block; font-size: 12px; font-weight: 500; color: #444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
     input[type="password"], input[type="text"], textarea {
-      width: 100%; background: #1a1a1a; border: 1px solid var(--border);
-      color: var(--text); border-radius: var(--radius); padding: 11px 14px;
-      font-size: 15px; font-family: inherit; outline: none;
-      transition: border .2s;
+      width: 100%; background: #fff; border: 1px solid var(--border);
+      color: var(--text); border-radius: var(--radius); padding: 12px 14px;
+      font-size: 14px; font-family: inherit; outline: none;
+      transition: all .2s;
     }
     input[type="password"]:focus, input[type="text"]:focus, textarea:focus {
       border-color: var(--teal);
-      box-shadow: 0 0 0 3px rgba(46,196,165,.1);
+      box-shadow: 0 0 0 3px rgba(46,196,165,0.1);
     }
     #login-error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
 
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       padding: 10px 18px; border-radius: var(--radius); font-size: 14px;
-      font-weight: 600; cursor: pointer; border: none; transition: all .2s;
+      font-weight: 500; cursor: pointer; border: none; transition: all .2s;
       font-family: inherit;
     }
-    .btn-primary { background: var(--teal); color: #000; width: 100%; margin-top: 18px; height: 44px; font-size: 15px; }
-    .btn-primary:hover { background: #26a98e; }
+    .btn-primary { background: #000; color: #fff; width: 100%; margin-top: 18px; height: 48px; font-size: 16px; }
+    .btn-primary:hover { background: #333; }
     .btn-danger { background: var(--red); color: #fff; }
     .btn-danger:hover { background: var(--red-dark); }
     .btn-danger:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-    .btn-outline:hover { border-color: var(--border-hover); background: #1a1a1a; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: #000; }
+    .btn-outline:hover { border-color: #000; background: #fafafa; }
 
     /* ── NAVBAR ── */
     nav {
       border-bottom: 1px solid var(--border);
-      padding: 0 32px; height: 58px;
+      padding: 0 32px; height: 64px;
       display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); z-index: 10;
     }
     .nav-badge {
-      background: #1a1a1a; border: 1px solid var(--border); border-radius: 20px;
-      padding: 3px 12px; font-size: 11px; color: var(--muted); margin-left: 14px;
+      background: #fafafa; border: 1px solid var(--border); border-radius: 20px;
+      padding: 4px 12px; font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 14px;
     }
     .nav-right { display: flex; align-items: center; gap: 10px; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
@@ -117,9 +118,10 @@
     .card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 28px;
-      transition: border .2s;
+      transition: all .2s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
-    .card:hover { border-color: var(--border-hover); }
+    .card:hover { border-color: var(--border-hover); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     .card-icon { font-size: 28px; margin-bottom: 14px; }
     .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
     .card .desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
@@ -147,7 +149,7 @@
       border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
     }
     tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
-    tbody tr:hover { background: #141414; }
+    tbody tr:hover { background: #fafafa; }
     tbody td { padding: 13px 14px; }
     .badge {
       display: inline-flex; align-items: center; gap: 5px;
