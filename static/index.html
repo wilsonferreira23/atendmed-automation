@@ -6,6 +6,8 @@
   <title>AtendMed BH – Cancelamentos Medicar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -291,9 +293,10 @@
     <!-- Resultados -->
     <div id="results-section" class="card">
       <div class="results-header">
-        <div style="display:flex; align-items:center; gap:16px;">
-          <h3>Resultado</h3>
-          <button class="btn btn-outline" style="height:32px; font-size:12px; padding:0 12px; border-color:var(--border);" onclick="exportCSV()">⬇ Exportar CSV</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 style="margin-right: 8px;">Resultado</h3>
+          <button class="btn btn-outline" style="height:32px; font-size:12px; padding:0 12px; border-color:var(--border);" onclick="exportCSV()">⬇ CSV</button>
+          <button class="btn btn-outline" style="height:32px; font-size:12px; padding:0 12px; border-color:var(--border);" onclick="exportPDF()">📄 PDF</button>
         </div>
         <div class="summary-pills" id="summary-pills"></div>
       </div>
@@ -475,6 +478,44 @@
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }
+
+  function exportPDF() {
+    if (!currentResults || !currentResults.length) return;
+    
+    // Config jsPDF
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('landscape');
+    
+    doc.setFontSize(16);
+    doc.text('Relatório de Cancelamentos - AtendMed BH', 14, 15);
+    doc.setFontSize(10);
+    const dateStr = new Date().toLocaleString('pt-BR');
+    doc.text(`Gerado em: ${dateStr}`, 14, 22);
+
+    const tableData = currentResults.map(r => {
+      const st = r.status || '';
+      const labelMap = { cancelado: 'Cancelado', erro: 'Erro', ignorado: 'Não encontrado' };
+      const label = labelMap[st] || st;
+      const subId = r.subscriberId || (r.detalhes?.subscriberId) || '—';
+      const rawMsg = r.mensagem || r.motivo || r.erro || (r.resultado?.message) || '';
+      const msg = rawMsg.includes('em análise') ? 'Já existe cancelamento em andamento' :
+                  rawMsg.includes('Sem subscriberId') ? 'Paciente não possui plano ativo' :
+                  rawMsg || '—';
+      
+      const cleanMsg = String(msg).replace(/\n/g, ' ').trim();
+      return [r.cpf || '', label, subId, cleanMsg];
+    });
+
+    doc.autoTable({
+      head: [['CPF', 'Situação', 'Nº Matrícula', 'Observação']],
+      body: tableData,
+      startY: 28,
+      theme: 'grid',
+      headStyles: { fillColor: [46, 196, 165] }, // Teal color branding
+    });
+
+    doc.save(`cancelamentos_medicar_${new Date().toISOString().slice(0,10)}.pdf`);
   }
 </script>
 </body>
