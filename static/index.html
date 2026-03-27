@@ -291,7 +291,10 @@
     <!-- Resultados -->
     <div id="results-section" class="card">
       <div class="results-header">
-        <h3>Resultado</h3>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <h3>Resultado</h3>
+          <button class="btn btn-outline" style="height:32px; font-size:12px; padding:0 12px; border-color:var(--border);" onclick="exportCSV()">⬇ Exportar CSV</button>
+        </div>
         <div class="summary-pills" id="summary-pills"></div>
       </div>
       <div style="overflow-x:auto;">
@@ -314,6 +317,7 @@
 
 <script>
   const SENHA = 'med123';
+  let currentResults = [];
 
   function doLogin() {
     const v = document.getElementById('senha').value;
@@ -353,6 +357,7 @@
   function clearError(id) { document.getElementById(id).style.display = 'none'; }
 
   function renderResults(items) {
+    currentResults = items;
     const section = document.getElementById('results-section');
     const tbody = document.getElementById('results-body');
     const pills = document.getElementById('summary-pills');
@@ -440,6 +445,36 @@
     } finally {
       setLoading('btn-lote', 'spin-lote', false);
     }
+  }
+
+  function exportCSV() {
+    if (!currentResults || !currentResults.length) return;
+
+    let csvContent = "CPF;Situacao;Num_Matricula;Observacao\n";
+
+    currentResults.forEach(r => {
+      const st = r.status || '';
+      const labelMap = { cancelado: 'Cancelado', erro: 'Erro', ignorado: 'Não encontrado' };
+      const label = labelMap[st] || st;
+      const subId = r.subscriberId || (r.detalhes?.subscriberId) || '—';
+      const rawMsg = r.mensagem || r.motivo || r.erro || (r.resultado?.message) || '';
+      const msg = rawMsg.includes('em análise') ? 'Já existe cancelamento em andamento' :
+                  rawMsg.includes('Sem subscriberId') ? 'Paciente não possui plano ativo' :
+                  rawMsg || '—';
+      
+      const cleanMsg = String(msg).replace(/;/g, ',').replace(/\n/g, ' ');
+      csvContent += `${r.cpf || ''};${label};${subId};${cleanMsg}\n`;
+    });
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0,10);
+    link.setAttribute('download', `cancelamentos_medicar_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 </script>
 </body>
