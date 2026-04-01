@@ -647,7 +647,6 @@ async def process_novo_cliente_item(
             "cpf": titular_dict["cpf"],
             "status": "sucesso",
             "titular": resp_titular,
-            "dependentes": resp_dep,
             "nome_titular": titular_dict["nome"],
             "id_plano": str(id_plano),
             "dependentes_nomes": deps_nomes,
