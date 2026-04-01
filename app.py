@@ -358,9 +358,9 @@ async def medicar_incluir_titular(
 
     try:
         resp.raise_for_status()
-    except Exception:
+    except Exception as exc:
         log.error(f"[ERRO TITULAR] {resp.status_code} → {resp.text}")
-        raise
+        raise RuntimeError(resp.text) from exc
 
     return resp.json()
 
@@ -436,9 +436,9 @@ async def medicar_incluir_dependentes(
 
     try:
         resp.raise_for_status()
-    except Exception:
+    except Exception as exc:
         log.error(f"[ERRO DEPENDENTES] {resp.status_code} → {resp.text}")
-        raise
+        raise RuntimeError(resp.text) from exc
 
     return resp.json()
 
@@ -480,9 +480,9 @@ async def medicar_encerrar_matricula(
 
     try:
         resp.raise_for_status()
-    except Exception:
+    except Exception as exc:
         log.error(f"[ERRO CANCELAR] Status: {resp.status_code} | Payload enviado: {json.dumps(payload)} | Resposta: {resp.text}")
-        raise
+        raise RuntimeError(resp.text) from exc
 
     return resp.json()
 
@@ -500,6 +500,7 @@ async def process_novo_cliente_item(
 
     cpf = data.get("cpf")
     id_cliente = data.get("id")
+    nome_titular = only_ascii_upper(data.get("nome") or "")
 
     if not cpf or not id_cliente:
         return {
@@ -522,6 +523,7 @@ async def process_novo_cliente_item(
         if not carteira or not carteira[0].get("planos_contratados"):
             db_registrar_operacao(
                 tipo="inclusao", status="ignorado", cpf=cpf,
+                nome=nome_titular,
                 mensagem="Nenhum plano encontrado após 5 tentativas", origem="webhook"
             )
             return {
@@ -537,6 +539,7 @@ async def process_novo_cliente_item(
         if not plano:
             db_registrar_operacao(
                 tipo="inclusao", status="ignorado", cpf=cpf,
+                nome=nome_titular,
                 id_plano=str(id_plano),
                 mensagem=f"Plano {id_plano} não mapeado na configuração",
                 origem="webhook"
@@ -639,14 +642,24 @@ async def process_novo_cliente_item(
 
     except Exception as e:
         log.exception(f"[NOVO CLIENTE] Erro ao processar CPF {cpf}")
+        msg_erro = str(e)
+        if isinstance(e, RuntimeError) and len(e.args) > 0 and isinstance(e.args[0], str):
+            try:
+                msg_json = json.loads(e.args[0])
+                if isinstance(msg_json, dict) and "errorMessage" in msg_json:
+                    msg_erro = msg_json["errorMessage"].replace("\\r\\n", " ").replace("\\n", " ")
+            except:
+                pass
+
         db_registrar_operacao(
             tipo="inclusao", status="erro", cpf=cpf,
-            mensagem=str(e), origem="webhook"
+            nome=nome_titular,
+            mensagem=msg_erro, origem="webhook"
         )
         return {
             "cpf": cpf,
             "status": "erro",
-            "erro": str(e),
+            "erro": msg_erro,
         }
 
 
