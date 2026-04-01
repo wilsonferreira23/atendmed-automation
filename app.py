@@ -90,6 +90,20 @@ def init_db():
                 data_exclusao TEXT NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS historico_operacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo TEXT NOT NULL,
+                status TEXT NOT NULL,
+                cpf TEXT NOT NULL,
+                nome TEXT,
+                id_plano TEXT,
+                dependentes TEXT,
+                mensagem TEXT,
+                data_hora TEXT NOT NULL,
+                origem TEXT
+            )
+        """)
         conn.commit()
 
 def db_salvar_excluido(id_cliente: int, cpf: str):
@@ -119,7 +133,53 @@ def db_remover_excluido(id_cliente: int):
         conn.execute("DELETE FROM clientes_excluidos WHERE id_cliente = ?", (id_cliente,))
         conn.commit()
 
-# inicializa a tabela na importação
+def db_registrar_operacao(
+    tipo: str,
+    status: str,
+    cpf: str,
+    nome: str = None,
+    id_plano: str = None,
+    dependentes: list = None,
+    mensagem: str = None,
+    origem: str = "webhook"
+):
+    deps_json = json.dumps(dependentes, ensure_ascii=False) if dependentes else None
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO historico_operacoes
+                (tipo, status, cpf, nome, id_plano, dependentes, mensagem, data_hora, origem)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                tipo, status, cpf, nome, id_plano,
+                deps_json, mensagem,
+                datetime.utcnow().isoformat(), origem
+            )
+        )
+        conn.commit()
+
+def db_listar_operacoes(tipo: str = "todos", page: int = 1, limit: int = 50) -> dict:
+    offset = (page - 1) * limit
+    with get_conn() as conn:
+        where = "" if tipo == "todos" else f"WHERE tipo = '{tipo}'"
+        count = conn.execute(f"SELECT COUNT(*) FROM historico_operacoes {where}").fetchone()[0]
+        rows = conn.execute(
+            f"SELECT * FROM historico_operacoes {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+            (limit, offset)
+        ).fetchall()
+    items = []
+    for r in rows:
+        d = dict(r)
+        if d.get("dependentes"):
+            try:
+                d["dependentes"] = json.loads(d["dependentes"])
+            except Exception:
+                pass
+        items.append(d)
+    return {"total": count, "page": page, "limit": limit, "items": items}
+
+# inicializa as tabelas na importação
 init_db()
 
 # ============================================================
@@ -453,7 +513,6 @@ async def process_novo_cliente_item(
         carteira = None
         for tentativa in range(5):
             carteira = await tenex_get_carteira(cpf)
-            log.info(f"[DEBUG NOVO CLIENTE] Resposta da Carteira TENEX: {json.dumps(carteira)}")
             if isinstance(carteira, list) and carteira and carteira[0].get("planos_contratados"):
                 log.info(f"[NOVO CLIENTE] Plano encontrado na tentativa {tentativa+1} para CPF {cpf}")
                 break
@@ -461,6 +520,10 @@ async def process_novo_cliente_item(
             await asyncio.sleep(60)
 
         if not carteira or not carteira[0].get("planos_contratados"):
+            db_registrar_operacao(
+                tipo="inclusao", status="ignorado", cpf=cpf,
+                mensagem="Nenhum plano encontrado após 5 tentativas", origem="webhook"
+            )
             return {
                 "cpf": cpf,
                 "status": "ignorado",
@@ -472,6 +535,12 @@ async def process_novo_cliente_item(
 
         plano = PLAN_MAPPING_JSON.get(str(id_plano))
         if not plano:
+            db_registrar_operacao(
+                tipo="inclusao", status="ignorado", cpf=cpf,
+                id_plano=str(id_plano),
+                mensagem=f"Plano {id_plano} não mapeado na configuração",
+                origem="webhook"
+            )
             return {
                 "cpf": cpf,
                 "status": "ignorado",
@@ -553,6 +622,14 @@ async def process_novo_cliente_item(
         else:
             resp_dep = {"mensagem": "Nenhum dependente encontrado"}
 
+        deps_nomes = [{"nome": d["nome"], "cpf": d["cpf"]} for d in dependentes_dicts] if dependentes_dicts else []
+        db_registrar_operacao(
+            tipo="inclusao", status="sucesso",
+            cpf=titular_dict["cpf"], nome=titular_dict["nome"],
+            id_plano=str(id_plano), dependentes=deps_nomes,
+            mensagem=f"Titular incluído. Dependentes: {len(deps_nomes)}",
+            origem="webhook"
+        )
         return {
             "cpf": titular_dict["cpf"],
             "status": "cadastrado",
@@ -562,6 +639,10 @@ async def process_novo_cliente_item(
 
     except Exception as e:
         log.exception(f"[NOVO CLIENTE] Erro ao processar CPF {cpf}")
+        db_registrar_operacao(
+            tipo="inclusao", status="erro", cpf=cpf,
+            mensagem=str(e), origem="webhook"
+        )
         return {
             "cpf": cpf,
             "status": "erro",
@@ -635,6 +716,11 @@ async def cancelar_por_cpf_core(
             block_date=block_date,
             login_user=login_user
         )
+        db_registrar_operacao(
+            tipo="exclusao", status="sucesso", cpf=cpf_digits,
+            mensagem=f"Matrícula {subscriberId} cancelada em {block_date}",
+            origem=login_user if login_user != "USUARIO API" else "webhook"
+        )
         return {
             "cpf": cpf_digits,
             "status": "cancelado",
@@ -643,6 +729,11 @@ async def cancelar_por_cpf_core(
             "resultado": result
         }
     except Exception as e:
+        db_registrar_operacao(
+            tipo="exclusao", status="erro", cpf=cpf_digits,
+            mensagem=str(e),
+            origem=login_user if login_user != "USUARIO API" else "webhook"
+        )
         return {
             "cpf": cpf_digits,
             "status": "erro",
@@ -1206,6 +1297,17 @@ async def cancelar_por_cpf(
 @app.get("/health")
 async def health():
     return {"status": "online", "servico": "TENEX → MEDICAR (async)"}
+
+# ============================================================
+# HISTÓRICO DE OPERAÇÕES
+# ============================================================
+@app.get("/api/historico")
+async def api_historico(
+    tipo: str = Query("todos", description="todos | inclusao | exclusao"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200)
+):
+    return db_listar_operacoes(tipo=tipo, page=page, limit=limit)
 
 # ============================================================
 # PAINEL ADMIN (rota raíz)
