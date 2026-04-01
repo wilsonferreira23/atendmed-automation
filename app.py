@@ -145,7 +145,7 @@ def db_registrar_operacao(
 ):
     deps_json = json.dumps(dependentes, ensure_ascii=False) if dependentes else None
     with get_conn() as conn:
-        conn.execute(
+        cur = conn.execute(
             """
             INSERT INTO historico_operacoes
                 (tipo, status, cpf, nome, id_plano, dependentes, mensagem, data_hora, origem)
@@ -157,6 +157,37 @@ def db_registrar_operacao(
                 datetime.utcnow().isoformat(), origem
             )
         )
+        conn.commit()
+        return cur.lastrowid
+
+def db_atualizar_operacao(
+    id_op: int,
+    status: str,
+    nome: str = None,
+    id_plano: str = None,
+    dependentes: list = None,
+    mensagem: str = None
+):
+    deps_json = json.dumps(dependentes, ensure_ascii=False) if dependentes else None
+    fields = ["status = ?"]
+    params = [status]
+    if nome is not None:
+        fields.append("nome = ?")
+        params.append(nome)
+    if id_plano is not None:
+        fields.append("id_plano = ?")
+        params.append(id_plano)
+    if dependentes is not None:
+        fields.append("dependentes = ?")
+        params.append(deps_json)
+    if mensagem is not None:
+        fields.append("mensagem = ?")
+        params.append(mensagem)
+    
+    params.append(id_op)
+    
+    with get_conn() as conn:
+        conn.execute(f"UPDATE historico_operacoes SET {', '.join(fields)} WHERE id = ?", tuple(params))
         conn.commit()
 
 def db_listar_operacoes(tipo: str = "todos", page: int = 1, limit: int = 50) -> dict:
@@ -521,15 +552,11 @@ async def process_novo_cliente_item(
             await asyncio.sleep(60)
 
         if not carteira or not carteira[0].get("planos_contratados"):
-            db_registrar_operacao(
-                tipo="inclusao", status="ignorado", cpf=cpf,
-                nome=nome_titular,
-                mensagem="Nenhum plano encontrado após 10 tentativas", origem="webhook"
-            )
             return {
                 "cpf": cpf,
                 "status": "ignorado",
-                "motivo": "Nenhum plano encontrado após 10 tentativas"
+                "motivo": "Nenhum plano encontrado após 10 tentativas",
+                "nome_titular": nome_titular
             }
 
         pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), carteira[0])
@@ -537,17 +564,12 @@ async def process_novo_cliente_item(
 
         plano = PLAN_MAPPING_JSON.get(str(id_plano))
         if not plano:
-            db_registrar_operacao(
-                tipo="inclusao", status="ignorado", cpf=cpf,
-                nome=nome_titular,
-                id_plano=str(id_plano),
-                mensagem=f"Plano {id_plano} não mapeado na configuração",
-                origem="webhook"
-            )
             return {
                 "cpf": cpf,
                 "status": "ignorado",
-                "motivo": f"plano {id_plano} não mapeado"
+                "motivo": f"Plano {id_plano} não mapeado na configuração",
+                "nome_titular": nome_titular,
+                "id_plano": str(id_plano)
             }
 
         # 2️⃣ Buscar titular e dependentes no TENEX
@@ -626,18 +648,15 @@ async def process_novo_cliente_item(
             resp_dep = {"mensagem": "Nenhum dependente encontrado"}
 
         deps_nomes = [{"nome": d["nome"], "cpf": d["cpf"]} for d in dependentes_dicts] if dependentes_dicts else []
-        db_registrar_operacao(
-            tipo="inclusao", status="sucesso",
-            cpf=titular_dict["cpf"], nome=titular_dict["nome"],
-            id_plano=str(id_plano), dependentes=deps_nomes,
-            mensagem=f"Titular incluído. Dependentes: {len(deps_nomes)}",
-            origem="webhook"
-        )
         return {
             "cpf": titular_dict["cpf"],
-            "status": "cadastrado",
+            "status": "sucesso",
             "titular": resp_titular,
             "dependentes": resp_dep,
+            "nome_titular": titular_dict["nome"],
+            "id_plano": str(id_plano),
+            "dependentes_nomes": deps_nomes,
+            "motivo": f"Titular incluído. Dependentes: {len(deps_nomes)}"
         }
 
     except Exception as e:
@@ -651,15 +670,11 @@ async def process_novo_cliente_item(
             except:
                 pass
 
-        db_registrar_operacao(
-            tipo="inclusao", status="erro", cpf=cpf,
-            nome=nome_titular,
-            mensagem=msg_erro, origem="webhook"
-        )
         return {
             "cpf": cpf,
             "status": "erro",
             "erro": msg_erro,
+            "nome_titular": nome_titular
         }
 
 
@@ -759,56 +774,69 @@ async def cancelar_por_cpf_core(
 
 
 
+from fastapi import FastAPI, Request, Query, BackgroundTasks
+
+async def process_novo_cliente_bg(item: dict, id_op: int):
+    try:
+        # Pega token (reaproveita cache local) e confs
+        token = await medicar_get_token()
+        tenantid = TENANT_ID
+        if not tenantid:
+            try:
+                contr = await medicar_get_contract(token)
+                tenantid = contr.get("tenantid")
+            except:
+                pass
+        contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
+        
+        # Chama a função pesada
+        res = await process_novo_cliente_item(item, token, tenantid, contract_fields)
+        
+        # Atualiza o painel
+        status = res.get("status")
+        msg = res.get("motivo") or res.get("erro") or "Processado com sucesso"
+        db_atualizar_operacao(
+            id_op=id_op,
+            status=status,
+            nome=res.get("nome_titular"),
+            id_plano=res.get("id_plano"),
+            dependentes=res.get("dependentes_nomes"),
+            mensagem=msg
+        )
+    except Exception as e:
+        db_atualizar_operacao(id_op, "erro", mensagem=f"Falha interna: {str(e)}")
+
 # ============================================================
 # 1) WEBHOOK – NOVO CLIENTE (insert)
 # ============================================================
 @app.post("/webhook/novo-cliente")
-async def webhook_novo_cliente(request: Request):
+async def webhook_novo_cliente(request: Request, bg_tasks: BackgroundTasks):
     body = await request.json()
     items = body if isinstance(body, list) else [body]
 
     log.info(f"[WEBHOOK NOVO CLIENTE] Recebido: {items}")
 
-    # Token Medicar
-    try:
-        token = await medicar_get_token()
-    except Exception as e:
-        return {"status": "erro", "mensagem": f"Erro obtendo token: {e}"}
-
-    tenantid = TENANT_ID
-
-    # Caso tenant venha vazio → pega do contrato padrão
-    if not tenantid:
-        try:
-            contr = await medicar_get_contract(token)
-            tenantid = contr.get("tenantid")
-        except Exception as e:
-            log.warning(f"Não foi possível obter tenant padrão: {e}")
-            tenantid = None
-
-    contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
-    results = []
-
     for item in items:
         header = item.get("header") or {}
         op = (header.get("operation") or "").lower()
         if op and op != "insert":
-            results.append({
-                "status": "ignorado",
-                "motivo": f"operation diferente de insert ({op})",
-                "raw_header": header
-            })
+            db_registrar_operacao("inclusao", "ignorado", cpf="—", mensagem=f"operation = {op}", origem="webhook")
             continue
-
-        result_item = await process_novo_cliente_item(
-            item=item,
-            token=token,
-            tenantid=tenantid,
-            contract_fields=contract_fields
+            
+        data = item.get("data") or {}
+        cpf = only_digits(data.get("cpf") or "???")
+        nome = data.get("nome") or ""
+        
+        # Insere registro imediato para o cliente ver no painel!
+        id_op = db_registrar_operacao(
+            tipo="inclusao", status="processando", cpf=cpf, nome=nome,
+            mensagem="Buscando plano no TENEX (pode demorar até 10 min)...", origem="webhook"
         )
-        results.append(result_item)
+        
+        # Lança para processamento em background
+        bg_tasks.add_task(process_novo_cliente_bg, item, id_op)
 
-    return {"status": "ok", "resultados": results}
+    return {"status": "ok", "mensagem": "Items enfileirados para processamento em background."}
 
 # ============================================================
 # 2) WEBHOOK – ATUALIZAÇÃO / DEPENDENTES (update + delete)

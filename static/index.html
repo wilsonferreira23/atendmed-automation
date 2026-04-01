@@ -678,6 +678,7 @@
       const tipoBadge   = r.tipo === 'inclusao' ? '<span class="badge inclusao">Inclusão</span>' : '<span class="badge exclusao">Exclusão</span>';
       const statusBadge = r.status === 'sucesso' ? '<span class="badge ok">✓ Sucesso</span>'
                         : r.status === 'erro'    ? '<span class="badge erro">✕ Erro</span>'
+                        : r.status === 'processando' ? '<span class="badge" style="background:var(--bg); color:var(--primary); border:1px solid rgba(89,100,224,0.3)">⌛ Aguardando Tenex...</span>'
                         : '<span class="badge ignorado">⊘ Ignorado</span>';
 
       const deps = Array.isArray(r.dependentes) && r.dependentes.length > 0
