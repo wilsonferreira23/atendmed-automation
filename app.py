@@ -613,43 +613,52 @@ async def process_novo_cliente_item(
 
         log.info(f"[NOVO CLIENTE] Titular incluído → CPF {titular_dict['cpf']}")
 
-        # 4️⃣ Buscar a matrícula recém-criada (com retry, pois o Protheus pode demorar alguns segundos)
-        url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
-        headers_medicar = {"Authorization": f"Bearer {token}"}
-        params_mat = {
-            "cnpjmedicar": MEDICAR_CNPJMEDICAR,
-            "grupoempresa": MEDICAR_GRUPOEMPRESA,
-            "contrato": MEDICAR_CONTRATO,
-            "cgcbeneficiario": only_digits(titular_dict["cpf"]),
-        }
-
+        # 4️⃣ Extrair a matrícula recém-criada do próprio retorno da API FWModel (imediato)
         matricula = None
+        for model in resp_titular.get("models", []):
+            if model.get("id") == "MASTERBBA":
+                for field in model.get("fields", []):
+                    if field.get("id") == "BBA_MATRIC":
+                        matricula = field.get("value", "").strip()
+                        break
+
         tenant_dep = tenantid
-        for tentativa_mat in range(5):
-            try:
-                resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
-                contr_data = resp_mat.json()
-                # Pode retornar lista ou dict
-                if isinstance(contr_data, list) and len(contr_data) > 0:
-                    contr_data = contr_data[0]
-                elif isinstance(contr_data, list):
-                    contr_data = {}
 
-                matricula = contr_data.get("BBA_MATRIC")
-                if matricula:
-                    tenant_dep = contr_data.get("tenantid") or tenantid
-                    break
-            except Exception as exc_mat:
-                log.warning(f"Erro ao buscar matrícula (tentativa {tentativa_mat+1}): {exc_mat}")
+        # Fallback caso a API mude e não devolva no payload (polling antigo)
+        if not matricula:
+            url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
+            headers_medicar = {"Authorization": f"Bearer {token}"}
+            params_mat = {
+                "cnpjmedicar": MEDICAR_CNPJMEDICAR,
+                "grupoempresa": MEDICAR_GRUPOEMPRESA,
+                "contrato": MEDICAR_CONTRATO,
+                "cgcbeneficiario": only_digits(titular_dict["cpf"]),
+            }
 
-            log.info(f"Matrícula não encontrada ainda. Aguardando 3s (tentativa {tentativa_mat+1}/5)...")
-            await asyncio.sleep(3)
+            for tentativa_mat in range(5):
+                try:
+                    resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
+                    contr_data = resp_mat.json()
+                    if isinstance(contr_data, list) and len(contr_data) > 0:
+                        contr_data = contr_data[0]
+                    elif isinstance(contr_data, list):
+                        contr_data = {}
+
+                    matricula = contr_data.get("BBA_MATRIC")
+                    if matricula:
+                        tenant_dep = contr_data.get("tenantid") or tenantid
+                        break
+                except Exception as exc_mat:
+                    log.warning(f"Erro ao buscar matrícula (tentativa {tentativa_mat+1}): {exc_mat}")
+
+                log.info(f"Matrícula não encontrada ainda. Aguardando 3s (tentativa {tentativa_mat+1}/5)...")
+                await asyncio.sleep(3)
 
         if not matricula:
             return {
                 "cpf": cpf,
                 "status": "erro",
-                "erro": "Titular criado, mas a matrícula Medicar não foi retornada (BBA_MATRIC vazio) após 15s.",
+                "erro": "Titular criado, mas a matrícula Medicar não foi retornada (BBA_MATRIC vazio)",
                 "nome_titular": titular_dict["nome"],
                 "id_plano": str(id_plano)
             }
