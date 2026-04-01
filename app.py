@@ -453,6 +453,7 @@ async def process_novo_cliente_item(
         carteira = None
         for tentativa in range(5):
             carteira = await tenex_get_carteira(cpf)
+            log.info(f"[DEBUG NOVO CLIENTE] Resposta da Carteira TENEX: {json.dumps(carteira)}")
             if isinstance(carteira, list) and carteira and carteira[0].get("planos_contratados"):
                 log.info(f"[NOVO CLIENTE] Plano encontrado na tentativa {tentativa+1} para CPF {cpf}")
                 break
