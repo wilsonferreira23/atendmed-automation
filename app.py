@@ -510,26 +510,26 @@ async def process_novo_cliente_item(
         }
 
     try:
-        # 1️⃣ Buscar plano na TENEX (com retry de 5 tentativas)
+        # 1️⃣ Buscar plano na TENEX (com retry de 10 tentativas)
         carteira = None
-        for tentativa in range(5):
+        for tentativa in range(10):
             carteira = await tenex_get_carteira(cpf)
             if isinstance(carteira, list) and carteira and carteira[0].get("planos_contratados"):
                 log.info(f"[NOVO CLIENTE] Plano encontrado na tentativa {tentativa+1} para CPF {cpf}")
                 break
-            log.warning(f"[NOVO CLIENTE] Tentativa {tentativa+1}/5: plano não disponível para CPF {cpf}. Aguardando 60 s...")
+            log.warning(f"[NOVO CLIENTE] Tentativa {tentativa+1}/10: plano não disponível para CPF {cpf}. Aguardando 60 s...")
             await asyncio.sleep(60)
 
         if not carteira or not carteira[0].get("planos_contratados"):
             db_registrar_operacao(
                 tipo="inclusao", status="ignorado", cpf=cpf,
                 nome=nome_titular,
-                mensagem="Nenhum plano encontrado após 5 tentativas", origem="webhook"
+                mensagem="Nenhum plano encontrado após 10 tentativas", origem="webhook"
             )
             return {
                 "cpf": cpf,
                 "status": "ignorado",
-                "motivo": "Nenhum plano encontrado após 5 tentativas"
+                "motivo": "Nenhum plano encontrado após 10 tentativas"
             }
 
         pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == only_digits(cpf)), carteira[0])
