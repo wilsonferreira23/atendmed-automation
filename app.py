@@ -340,6 +340,8 @@ async def medicar_incluir_titular(
     sexo = sexo_valor(titular["sexo"])
     mae = mae_ok(titular["nome_mae"])
 
+    dependentes = titular.get("dependentes", [])
+
     # Campos MASTERBBA
     master_bba_fields = [
         {"id": "BBA_CODINT", "order": 1, "value": base_contract["BBA_CODINT"]},
@@ -369,6 +371,31 @@ async def medicar_incluir_titular(
             {"id": "B2N_CODPRO", "value": plano["codpro"]},
         ]
     }]
+
+    for idx, dep in enumerate(dependentes, start=2):
+        d_nome = only_ascii_upper(dep.get("nome") or "")
+        d_dn = only_digits(dep.get("data_nascimento") or "").replace("-", "")
+        d_sexo = sexo_valor(dep.get("sexo"))
+        d_cpf = only_digits(dep.get("cpf") or "")
+        d_mae = mae_ok(dep.get("nome_mae"))
+
+        if not d_nome or not d_cpf or not d_dn:
+            continue
+
+        items.append({
+            "id": idx,
+            "deleted": 0,
+            "fields": [
+                {"id": "B2N_NOMUSR", "value": d_nome},
+                {"id": "B2N_DATNAS", "value": d_dn},
+                {"id": "B2N_GRAUPA", "value": "11"},
+                {"id": "B2N_ESTCIV", "value": "S"},
+                {"id": "B2N_SEXO", "value": d_sexo},
+                {"id": "B2N_CPFUSR", "value": d_cpf},
+                {"id": "B2N_MAE", "value": d_mae},
+                {"id": "B2N_CODPRO", "value": plano["codpro"]},
+            ]
+        })
 
     payload = {
         "id": "PLIncBenModel",
@@ -602,7 +629,9 @@ async def process_novo_cliente_item(
         if not titular_dict["nome"] or not titular_dict["cpf"]:
             return {"cpf": cpf, "status": "erro", "erro": "Titular inválido (sem nome/CPF)"}
 
-        # 3️⃣ Incluir TITULAR na Medicar
+        titular_dict["dependentes"] = dependentes_dicts
+
+        # 3️⃣ Incluir TITULAR e DEPENDENTES de uma só vez na Medicar
         resp_titular = await medicar_incluir_titular(
             token=token,
             tenantid=tenantid,
@@ -611,68 +640,7 @@ async def process_novo_cliente_item(
             contract_fields=contract_fields,
         )
 
-        log.info(f"[NOVO CLIENTE] Titular incluído → CPF {titular_dict['cpf']}")
-
-        # 4️⃣ Extrair a matrícula recém-criada do próprio retorno da API FWModel (imediato)
-        matricula = None
-        for model in resp_titular.get("models", []):
-            if model.get("id") == "MASTERBBA":
-                for field in model.get("fields", []):
-                    if field.get("id") == "BBA_MATRIC":
-                        matricula = field.get("value", "").strip()
-                        break
-
-        tenant_dep = tenantid
-
-        # Fallback caso a API mude e não devolva no payload (polling antigo)
-        if not matricula:
-            url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
-            headers_medicar = {"Authorization": f"Bearer {token}"}
-            params_mat = {
-                "cnpjmedicar": MEDICAR_CNPJMEDICAR,
-                "grupoempresa": MEDICAR_GRUPOEMPRESA,
-                "contrato": MEDICAR_CONTRATO,
-                "cgcbeneficiario": only_digits(titular_dict["cpf"]),
-            }
-
-            for tentativa_mat in range(5):
-                try:
-                    resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
-                    contr_data = resp_mat.json()
-                    if isinstance(contr_data, list) and len(contr_data) > 0:
-                        contr_data = contr_data[0]
-                    elif isinstance(contr_data, list):
-                        contr_data = {}
-
-                    matricula = contr_data.get("BBA_MATRIC")
-                    if matricula:
-                        tenant_dep = contr_data.get("tenantid") or tenantid
-                        break
-                except Exception as exc_mat:
-                    log.warning(f"Erro ao buscar matrícula (tentativa {tentativa_mat+1}): {exc_mat}")
-
-                log.info(f"Matrícula não encontrada ainda. Aguardando 3s (tentativa {tentativa_mat+1}/5)...")
-                await asyncio.sleep(3)
-
-        if not matricula:
-            return {
-                "cpf": cpf,
-                "status": "erro",
-                "erro": "Titular criado, mas a matrícula Medicar não foi retornada (BBA_MATRIC vazio)",
-                "nome_titular": titular_dict["nome"],
-                "id_plano": str(id_plano)
-            }
-
-        # 5️⃣ Incluir DEPENDENTES (se houver)
-        if dependentes_dicts:
-            resp_dep = await medicar_incluir_dependentes(
-                token=token,
-                tenantid=tenant_dep,
-                matricula=matricula,
-                dependentes=dependentes_dicts,
-            )
-        else:
-            resp_dep = {"mensagem": "Nenhum dependente encontrado"}
+        log.info(f"[NOVO CLIENTE] Titular e {len(dependentes_dicts)} dependentes incluídos → CPF {titular_dict['cpf']}")
 
         deps_nomes = [{"nome": d["nome"], "cpf": d["cpf"]} for d in dependentes_dicts] if dependentes_dicts else []
         return {
