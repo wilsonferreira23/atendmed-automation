@@ -613,7 +613,7 @@ async def process_novo_cliente_item(
 
         log.info(f"[NOVO CLIENTE] Titular incluído → CPF {titular_dict['cpf']}")
 
-        # 4️⃣ Buscar a matrícula recém-criada
+        # 4️⃣ Buscar a matrícula recém-criada (com retry, pois o Protheus pode demorar alguns segundos)
         url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
         headers_medicar = {"Authorization": f"Bearer {token}"}
         params_mat = {
@@ -623,17 +623,35 @@ async def process_novo_cliente_item(
             "cgcbeneficiario": only_digits(titular_dict["cpf"]),
         }
 
-        resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
-        contr_data = resp_mat.json()
+        matricula = None
+        tenant_dep = tenantid
+        for tentativa_mat in range(5):
+            try:
+                resp_mat = await httpx_retry("GET", url_mat, headers=headers_medicar, params=params_mat)
+                contr_data = resp_mat.json()
+                # Pode retornar lista ou dict
+                if isinstance(contr_data, list) and len(contr_data) > 0:
+                    contr_data = contr_data[0]
+                elif isinstance(contr_data, list):
+                    contr_data = {}
 
-        matricula = contr_data.get("BBA_MATRIC")
-        tenant_dep = contr_data.get("tenantid") or tenantid
+                matricula = contr_data.get("BBA_MATRIC")
+                if matricula:
+                    tenant_dep = contr_data.get("tenantid") or tenantid
+                    break
+            except Exception as exc_mat:
+                log.warning(f"Erro ao buscar matrícula (tentativa {tentativa_mat+1}): {exc_mat}")
+
+            log.info(f"Matrícula não encontrada ainda. Aguardando 3s (tentativa {tentativa_mat+1}/5)...")
+            await asyncio.sleep(3)
 
         if not matricula:
             return {
                 "cpf": cpf,
                 "status": "erro",
-                "erro": "Titular criado mas matrícula não retornou (BBA_MATRIC vazio)"
+                "erro": "Titular criado, mas a matrícula Medicar não foi retornada (BBA_MATRIC vazio) após 15s.",
+                "nome_titular": titular_dict["nome"],
+                "id_plano": str(id_plano)
             }
 
         # 5️⃣ Incluir DEPENDENTES (se houver)
