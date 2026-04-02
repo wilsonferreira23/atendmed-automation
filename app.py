@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 
-app = FastAPI(title="Atende Med – Integração TENEX → MEDICAR (async)")
+app = FastAPI(title="Atende Med – Integração TENEX → MEDICAR")
 
 # Servir arquivos estáticos (painel admin)
 _static_dir = os.path.join(os.path.dirname(__file__), "static")
