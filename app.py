@@ -935,38 +935,11 @@ async def webhook_dependentes(request: Request):
                 log.info("\n🚨🚨🚨 CLIENTE INATIVO — INICIANDO FLUXO DE EXCLUSÃO 🚨🚨🚨\n")
 
                 # --------------------------
-                # Verificar plano
+                # Buscar matrícula na Medicar diretamente pelo CPF
+                # (não verifica carteira-virtual pois quando o cliente é desativado
+                #  o Tenex já removeu o plano, fazendo essa checagem falhar sempre)
                 # --------------------------
-                log.info("📡 Verificando plano via carteira-virtual...")
-                carteira = await tenex_get_carteira(cpf_digits)
-                first = carteira[0] if isinstance(carteira, list) and carteira else None
-
-                if not first or not first.get("planos_contratados"):
-                    log.warning("⚠️ Cliente NÃO possui plano ativo — exclusão ignorada.")
-                    results.append({
-                        "cpf": cpf_digits,
-                        "status": "ignorado",
-                        "motivo": "Cliente sem plano ativo (exclusão)"
-                    })
-                    continue
-
-                pessoa = next((p for p in carteira if only_digits(p.get("cpf", "")) == cpf_digits), first)
-                id_plano = pessoa["planos_contratados"][0]["id_plano"]
-
-                plano = PLAN_MAPPING_JSON.get(str(id_plano))
-                if not plano:
-                    log.warning(f"⚠️ Plano {id_plano} não mapeado — exclusão ignorada.")
-                    results.append({
-                        "cpf": cpf_digits,
-                        "status": "ignorado",
-                        "motivo": f"plano {id_plano} não mapeado"
-                    })
-                    continue
-
-                # --------------------------
-                # Buscar matrícula na Medicar
-                # --------------------------
-                log.info("📡 Buscando matrícula (BBA_MATRIC) no Medicar...")
+                log.info("📡 Buscando matrícula (BBA_MATRIC) no Medicar pelo CPF...")
                 url_mat = f"{MEDICAR_BASE_URL}/client/v1/contract"
                 params_mat = {
                     "cnpjmedicar": MEDICAR_CNPJMEDICAR,
@@ -975,40 +948,77 @@ async def webhook_dependentes(request: Request):
                     "cgcbeneficiario": cpf_digits,
                 }
 
-                resp_mat = await httpx_retry("GET", url_mat, headers={"Authorization": f"Bearer {token}"}, params=params_mat)
-                contr_data = resp_mat.json()
+                try:
+                    resp_mat = await httpx_retry("GET", url_mat, headers={"Authorization": f"Bearer {token}"}, params=params_mat)
+                    contr_data = resp_mat.json()
+                except Exception as exc_mat:
+                    log.error(f"❌ Erro ao buscar matrícula na Medicar: {exc_mat}")
+                    nome_cliente = data.get("nome") or cpf_digits
+                    id_op_exc = db_registrar_operacao(
+                        tipo="exclusao", status="erro", cpf=cpf_digits,
+                        nome=nome_cliente,
+                        mensagem=f"Erro ao buscar matrícula na Medicar: {exc_mat}",
+                        origem="webhook"
+                    )
+                    results.append({"cpf": cpf_digits, "status": "erro", "erro": str(exc_mat)})
+                    continue
 
                 subscriber_id = contr_data.get("BBA_MATRIC")
                 log.info(f"📄 Matrícula encontrada: {subscriber_id}")
 
+                nome_cliente = data.get("nome") or cpf_digits
+
                 if not subscriber_id:
-                    log.warning("⚠️ Cliente ainda não possui matrícula — não há o que cancelar.")
+                    log.warning("⚠️ Cliente não possui matrícula ativa na Medicar — exclusão ignorada.")
+                    db_registrar_operacao(
+                        tipo="exclusao", status="ignorado", cpf=cpf_digits,
+                        nome=nome_cliente,
+                        mensagem="Cliente desativado no Tenex mas sem matrícula ativa na Medicar",
+                        origem="webhook"
+                    )
                     results.append({
                         "cpf": cpf_digits,
                         "status": "ignorado",
-                        "motivo": "Sem matrícula para cancelar"
+                        "motivo": "Sem matrícula ativa na Medicar para cancelar"
                     })
                     continue
 
                 # --------------------------
                 # Cancelar matrícula
                 # --------------------------
-                log.info("🔥 Cancelando matrícula no Medicar...")
+                log.info(f"🔥 Cancelando matrícula {subscriber_id} no Medicar...")
                 block_date = date.today().strftime("%Y-%m-%d")
 
-                resp_cancel = await medicar_encerrar_matricula(
-                    token=token,
-                    subscriber_id=subscriber_id,
-                    reason="000001",
-                    block_date=block_date,
-                    login_user="WEBHOOK DEPENDENTES (EXCLUSAO)"
-                )
+                try:
+                    resp_cancel = await medicar_encerrar_matricula(
+                        token=token,
+                        subscriber_id=subscriber_id,
+                        reason="000001",
+                        block_date=block_date,
+                        login_user="WEBHOOK DEPENDENTES (EXCLUSAO)"
+                    )
+                except Exception as exc_cancel:
+                    log.error(f"❌ Erro ao cancelar matrícula {subscriber_id}: {exc_cancel}")
+                    db_registrar_operacao(
+                        tipo="exclusao", status="erro", cpf=cpf_digits,
+                        nome=nome_cliente,
+                        mensagem=f"Erro ao cancelar matrícula {subscriber_id}: {exc_cancel}",
+                        origem="webhook"
+                    )
+                    results.append({"cpf": cpf_digits, "status": "erro", "erro": str(exc_cancel)})
+                    continue
 
                 # --------------------------
-                # Salvar no banco
+                # Salvar no banco e registrar no painel
                 # --------------------------
                 log.info("🗄️ Salvando cliente como 'excluído' no banco...")
                 db_salvar_excluido(id_cliente=id_cliente, cpf=cpf_digits)
+                db_registrar_operacao(
+                    tipo="exclusao", status="sucesso", cpf=cpf_digits,
+                    nome=nome_cliente,
+                    mensagem=f"Matrícula {subscriber_id} cancelada em {block_date}",
+                    origem="webhook"
+                )
 
                 log.info("✔️ MATRÍCULA CANCELADA COM SUCESSO!")
                 log.info("✔️ CLIENTE MARCADO COMO EXCLUÍDO NO BANCO")
