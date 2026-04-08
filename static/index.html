@@ -21,9 +21,11 @@
       --red: #e53935;
       --red-dark: #b71c1c;
       --teal: #2ec4a5;
+      --teal-dark: #22a88d;
       --green: #00a651;
       --yellow: #f5a623;
       --blue: #0070f3;
+      --blue-dark: #0057c0;
       --radius: 8px;
     }
 
@@ -87,6 +89,9 @@
     .btn-danger { background: var(--red); color: #fff; }
     .btn-danger:hover { background: var(--red-dark); }
     .btn-danger:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-success { background: var(--teal); color: #fff; }
+    .btn-success:hover { background: var(--teal-dark); }
+    .btn-success:disabled { opacity: .5; cursor: not-allowed; }
     .btn-outline { background: transparent; border: 1px solid var(--border); color: #000; }
     .btn-outline:hover { border-color: #000; background: #f5f5f5; }
     .btn-sm { height: 32px; font-size: 12px; padding: 0 12px; }
@@ -144,6 +149,8 @@
 
     /* ── RESULTS ── */
     #results-section { display: none; }
+    #results-inclusao-section { display: none; }
+
     .section-header {
       display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
     }
@@ -157,6 +164,7 @@
     .pill.red    { background: rgba(229,57,53,.08); border-color: rgba(229,57,53,.25); color: var(--red); }
     .pill.yellow { background: rgba(245,166,35,.08); border-color: rgba(245,166,35,.25); color: var(--yellow); }
     .pill.blue   { background: rgba(0,112,243,.08); border-color: rgba(0,112,243,.25); color: var(--blue); }
+    .pill.teal   { background: rgba(46,196,165,.08); border-color: rgba(46,196,165,.25); color: var(--teal); }
 
     /* ── TABLE ── */
     .table-wrap { overflow-x: auto; }
@@ -177,7 +185,7 @@
     .badge.ok        { background: rgba(0,166,81,.08); border-color: rgba(0,166,81,.25); color: var(--green); }
     .badge.erro      { background: rgba(229,57,53,.08); border-color: rgba(229,57,53,.25); color: var(--red); }
     .badge.ignorado  { background: rgba(245,166,35,.08); border-color: rgba(245,166,35,.25); color: var(--yellow); }
-    .badge.inclusao  { background: rgba(0,112,243,.08); border-color: rgba(0,112,243,.25); color: var(--blue); }
+    .badge.inclusao  { background: rgba(46,196,165,.08); border-color: rgba(46,196,165,.25); color: var(--teal); }
     .badge.exclusao  { background: rgba(229,57,53,.08); border-color: rgba(229,57,53,.25); color: var(--red); }
 
     /* ── PAGINATION ── */
@@ -238,6 +246,7 @@
     .stat-card.red .stat-value { color: var(--red); }
     .stat-card.yellow .stat-value { color: var(--yellow); }
     .stat-card.blue .stat-value { color: var(--blue); }
+    .stat-card.teal .stat-value { color: var(--teal); }
   </style>
 </head>
 <body>
@@ -304,8 +313,9 @@
   <!-- ABAS -->
   <div class="tabs-container">
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('cancelamentos', this)">✕ Cancelamentos</button>
-      <button class="tab-btn" onclick="switchTab('historico', this)">📋 Histórico</button>
+      <button class="tab-btn active"  onclick="switchTab('cancelamentos', this)">✕ Cancelamentos</button>
+      <button class="tab-btn"         onclick="switchTab('inclusoes', this)">＋ Inclusões</button>
+      <button class="tab-btn"         onclick="switchTab('historico', this)">📋 Histórico</button>
     </div>
   </div>
 
@@ -378,6 +388,75 @@
       </div>
     </div><!-- /tab-cancelamentos -->
 
+    <!-- ════ ABA INCLUSÕES ════ -->
+    <div id="tab-inclusoes" class="tab-content">
+      <h1>Inclusões Medicar</h1>
+      <p class="subtitle">Inclua um paciente na Medicar pelo CPF. O sistema busca o plano automaticamente no Tenex.</p>
+
+      <div class="grid">
+        <!-- Card 1: Individual -->
+        <div class="card">
+          <div class="card-icon">🔵</div>
+          <h3>Incluir um Paciente</h3>
+          <p class="desc">Digite o CPF. O sistema verifica o plano ativo no Tenex e inclui na Medicar automaticamente.</p>
+          <div class="field">
+            <label for="cpf-inc-single">CPF do Paciente</label>
+            <input type="text" id="cpf-inc-single" placeholder="000.000.000-00"
+              oninput="formatCPF(this)"
+              onkeydown="if(event.key==='Enter')incluirIndividual()" />
+          </div>
+          <div id="err-inc-single" class="error-msg"></div>
+          <button id="btn-inc-single" class="btn btn-success" style="width:100%;margin-top:4px;height:44px;font-size:15px;" onclick="incluirIndividual()">
+            <span class="spinner" id="spin-inc-single"></span>
+            Incluir na Medicar
+          </button>
+        </div>
+
+        <!-- Card 2: Lote -->
+        <div class="card">
+          <div class="card-icon">🔷</div>
+          <h3>Incluir Vários Pacientes</h3>
+          <p class="desc">Cole a lista de CPFs abaixo, um por linha. Cada CPF será verificado e incluído se qualificado.</p>
+          <div class="field">
+            <label for="cpf-inc-lote">Lista de CPFs (um por linha)</label>
+            <textarea id="cpf-inc-lote" placeholder="000.000.000-00&#10;111.111.111-11&#10;222.222.222-22"></textarea>
+          </div>
+          <div id="err-inc-lote" class="error-msg"></div>
+          <button id="btn-inc-lote" class="btn btn-success" style="width:100%;margin-top:4px;height:44px;font-size:15px;" onclick="incluirLote()">
+            <span class="spinner" id="spin-inc-lote"></span>
+            Incluir Todos
+          </button>
+        </div>
+      </div>
+
+      <!-- Resultados Inclusão -->
+      <div id="results-inclusao-section" class="card">
+        <div class="section-header">
+          <div class="header-left">
+            <h3>Resultado das Inclusões</h3>
+            <button class="btn btn-outline btn-sm" onclick="exportInclusaoCSV()">⬇ CSV</button>
+            <button class="btn btn-outline btn-sm" onclick="exportInclusaoPDF()">📄 PDF</button>
+          </div>
+          <div class="summary-pills" id="summary-inc-pills"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>CPF</th>
+                <th>Nome</th>
+                <th>Situação</th>
+                <th>Plano</th>
+                <th>Dependentes</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody id="results-inc-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /tab-inclusoes -->
+
     <!-- ════ ABA HISTÓRICO ════ -->
     <div id="tab-historico" class="tab-content">
       <h1>Histórico de Operações</h1>
@@ -385,7 +464,7 @@
 
       <!-- Stat cards -->
       <div class="stat-cards" id="stat-cards">
-        <div class="stat-card blue"><div class="stat-label">Total Inclusões</div><div class="stat-value" id="stat-inclusoes">—</div></div>
+        <div class="stat-card teal"><div class="stat-label">Total Inclusões</div><div class="stat-value" id="stat-inclusoes">—</div></div>
         <div class="stat-card red"><div class="stat-label">Total Exclusões</div><div class="stat-value" id="stat-exclusoes">—</div></div>
         <div class="stat-card green"><div class="stat-label">Sucessos</div><div class="stat-value" id="stat-sucesso">—</div></div>
         <div class="stat-card yellow"><div class="stat-label">Erros/Ignorados</div><div class="stat-value" id="stat-erros">—</div></div>
@@ -455,6 +534,7 @@
 <script>
   const SENHA = 'med123';
   let currentResults = [];
+  let currentInclusaoResults = [];
   let histPage = 1;
   let histTotal = 0;
   let histData = [];
@@ -605,6 +685,104 @@
     }
   }
 
+  // ── INCLUSÕES ──
+  function renderInclusaoResults(items) {
+    currentInclusaoResults = items;
+    const section = document.getElementById('results-inclusao-section');
+    const tbody   = document.getElementById('results-inc-body');
+    const pills   = document.getElementById('summary-inc-pills');
+    section.style.display = 'block';
+
+    let ok = 0, err = 0, ign = 0;
+    tbody.innerHTML = '';
+
+    for (const r of items) {
+      const st = r.status || '';
+      if (st === 'sucesso') ok++;
+      else if (st === 'erro') err++;
+      else ign++;
+
+      const badgeClass = st === 'sucesso' ? 'ok' : st === 'erro' ? 'erro' : 'ignorado';
+      const labelMap = { sucesso: '✓ Incluído', erro: '✕ Erro', ignorado: '⊘ Ignorado', processando: '⌛ Processando' };
+      const label = labelMap[st] || st;
+      const msg   = normalizeMsg(r.mensagem || '');
+      const deps  = Array.isArray(r.dependentes) ? r.dependentes.join(', ') : (r.dependentes || '—');
+
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td class="cpf-col">${r.cpf || '—'}</td>
+          <td style="font-size:13px; font-weight:500;">${r.nome || '—'}</td>
+          <td><span class="badge ${badgeClass}">${label}</span></td>
+          <td style="font-size:12px; color:var(--muted);">${r.id_plano ? 'ID ' + r.id_plano : '—'}</td>
+          <td class="deps-col" title="${deps}">${deps.length > 40 ? deps.slice(0,40) + '…' : deps}</td>
+          <td class="msg-col" title="${msg}">${msg}</td>
+        </tr>
+      `);
+    }
+
+    pills.innerHTML = `
+      ${ok  > 0 ? `<span class="pill teal">✓ ${ok} Incluído${ok>1?'s':''}</span>` : ''}
+      ${ign > 0 ? `<span class="pill yellow">⊘ ${ign} Ignorado${ign>1?'s':''}</span>` : ''}
+      ${err > 0 ? `<span class="pill red">✕ ${err} Erro${err>1?'s':''}</span>` : ''}
+    `;
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function incluirIndividual() {
+    clearError('err-inc-single');
+    const cpf = document.getElementById('cpf-inc-single').value.trim();
+    if (!cpf) return showError('err-inc-single', 'Informe o CPF do paciente.');
+    setLoading('btn-inc-single', 'spin-inc-single', true);
+    try {
+      const params = new URLSearchParams({ cpf, loginUser: 'PAINEL WEB' });
+      const res  = await fetch(`/incluir-por-cpf?${params}`, { method: 'POST' });
+      const data = await res.json();
+      renderInclusaoResults([{
+        cpf: data.cpf || cpf.replace(/\D/g,''),
+        nome: data.nome || '—',
+        status: data.status,
+        id_plano: data.id_plano,
+        dependentes: data.dependentes,
+        mensagem: data.mensagem || ''
+      }]);
+    } catch (e) {
+      showError('err-inc-single', 'Não foi possível conectar ao sistema. Tente novamente.');
+    } finally {
+      setLoading('btn-inc-single', 'spin-inc-single', false);
+    }
+  }
+
+  async function incluirLote() {
+    clearError('err-inc-lote');
+    const raw = document.getElementById('cpf-inc-lote').value.trim();
+    if (!raw) return showError('err-inc-lote', 'Informe ao menos um CPF.');
+    const cpfs = raw.split(/[\n,;]+/).map(c => c.trim()).filter(Boolean);
+    if (!cpfs.length) return showError('err-inc-lote', 'Nenhum CPF válido encontrado.');
+    setLoading('btn-inc-lote', 'spin-inc-lote', true);
+
+    // processa sequencialmente para não sobrecarregar
+    const results = [];
+    for (const cpf of cpfs) {
+      try {
+        const params = new URLSearchParams({ cpf, loginUser: 'PAINEL WEB' });
+        const res  = await fetch(`/incluir-por-cpf?${params}`, { method: 'POST' });
+        const data = await res.json();
+        results.push({
+          cpf: data.cpf || cpf.replace(/\D/g,''),
+          nome: data.nome || '—',
+          status: data.status,
+          id_plano: data.id_plano,
+          dependentes: data.dependentes,
+          mensagem: data.mensagem || ''
+        });
+      } catch(e) {
+        results.push({ cpf: cpf.replace(/\D/g,''), nome: '—', status: 'erro', mensagem: 'Erro de conexão' });
+      }
+    }
+    renderInclusaoResults(results);
+    setLoading('btn-inc-lote', 'spin-inc-lote', false);
+  }
+
   // ── HISTÓRICO ──
   async function loadHistorico(page) {
     histPage = Math.max(1, page);
@@ -620,7 +798,6 @@
       histTotal = data.total || 0;
       histData  = data.items || [];
 
-      // Filtrar por status no frontend (simples)
       let items = histData;
       if (status !== 'todos') items = histData.filter(r => r.status === status);
 
@@ -633,7 +810,6 @@
 
   async function updateStats(total) {
     try {
-      // Busca contagens separadas
       const [inc, exc] = await Promise.all([
         fetch('/api/historico?tipo=inclusao&limit=1').then(r => r.json()),
         fetch('/api/historico?tipo=exclusao&limit=1').then(r => r.json()),
@@ -641,8 +817,6 @@
       document.getElementById('stat-inclusoes').textContent = inc.total ?? '—';
       document.getElementById('stat-exclusoes').textContent = exc.total ?? '—';
       document.getElementById('stat-sucesso').textContent = total ?? '—';
-
-      // Para erros, busca total e subtrai sucesso
       const allData = await fetch('/api/historico?tipo=todos&limit=200').then(r => r.json());
       const erros = (allData.items || []).filter(r => r.status !== 'sucesso').length;
       document.getElementById('stat-erros').textContent = erros;
@@ -675,10 +849,12 @@
 
     tbody.innerHTML = '';
     for (const r of items) {
-      const tipoBadge   = r.tipo === 'inclusao' ? '<span class="badge inclusao">Inclusão</span>' : '<span class="badge exclusao">Exclusão</span>';
-      const statusBadge = r.status === 'sucesso' ? '<span class="badge ok">✓ Sucesso</span>'
-                        : r.status === 'erro'    ? '<span class="badge erro">✕ Erro</span>'
-                        : r.status === 'processando' ? '<span class="badge" style="background:var(--bg); color:var(--primary); border:1px solid rgba(89,100,224,0.3)">⌛ Aguardando Tenex...</span>'
+      const tipoBadge   = r.tipo === 'inclusao'
+        ? '<span class="badge inclusao">Inclusão</span>'
+        : '<span class="badge exclusao">Exclusão</span>';
+      const statusBadge = r.status === 'sucesso'    ? '<span class="badge ok">✓ Sucesso</span>'
+                        : r.status === 'erro'       ? '<span class="badge erro">✕ Erro</span>'
+                        : r.status === 'processando'? '<span class="badge" style="background:var(--bg); color:#888; border:1px solid #ddd">⌛ Aguardando…</span>'
                         : '<span class="badge ignorado">⊘ Ignorado</span>';
 
       const deps = Array.isArray(r.dependentes) && r.dependentes.length > 0
@@ -687,7 +863,6 @@
       const depsDisp = deps.length > 40 ? deps.slice(0,40) + '…' : deps;
 
       const msg = normalizeMsg(r.mensagem);
-      // Erros mostram a mensagem completa (sem truncar)
       const isErro = r.status === 'erro';
       const msgDisp = (!isErro && msg.length > 45) ? msg.slice(0,45) + '…' : msg;
       const msgClass = isErro ? 'msg-col full' : 'msg-col';
@@ -734,8 +909,39 @@
       const labelMap = { cancelado: 'Cancelado', erro: 'Erro', ignorado: 'Não encontrado' };
       return [r.cpf||'', labelMap[st]||st, r.subscriberId||r.detalhes?.subscriberId||'—', normalizeMsg(r.mensagem||r.motivo||r.erro||'')];
     });
-    doc.autoTable({ head: [['CPF','Situação','Nº Matrícula','Observação']], body: rows, startY: 28, theme: 'grid', headStyles: { fillColor: [46,196,165] } });
+    doc.autoTable({ head: [['CPF','Situação','Nº Matrícula','Observação']], body: rows, startY: 28, theme: 'grid', headStyles: { fillColor: [229,57,53] } });
     doc.save(`cancelamentos_medicar_${today()}.pdf`);
+  }
+
+  // ── EXPORTAR INCLUSÕES ──
+  function exportInclusaoCSV() {
+    if (!currentInclusaoResults.length) return;
+    let csv = "CPF;Nome;Situacao;Plano;Dependentes;Observacao\n";
+    currentInclusaoResults.forEach(r => {
+      const st = r.status || '';
+      const labelMap = { sucesso: 'Incluído', erro: 'Erro', ignorado: 'Ignorado' };
+      const label = labelMap[st] || st;
+      const deps = Array.isArray(r.dependentes) ? r.dependentes.join(' | ') : (r.dependentes || '');
+      const msg = normalizeMsg(r.mensagem || '');
+      csv += `${r.cpf||''};${r.nome||''};${label};${r.id_plano?'ID '+r.id_plano:''};${String(deps).replace(/;/g,'|')};${String(msg).replace(/;/g,',')}\n`;
+    });
+    downloadCSV(csv, `inclusoes_medicar_${today()}.csv`);
+  }
+
+  function exportInclusaoPDF() {
+    if (!currentInclusaoResults.length) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('landscape');
+    doc.setFontSize(16); doc.text('Relatório de Inclusões - AtendMed BH', 14, 15);
+    doc.setFontSize(10); doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 22);
+    const rows = currentInclusaoResults.map(r => {
+      const st = r.status || '';
+      const labelMap = { sucesso: 'Incluído', erro: 'Erro', ignorado: 'Ignorado' };
+      const deps = Array.isArray(r.dependentes) ? r.dependentes.join(', ') : (r.dependentes || '—');
+      return [r.cpf||'', r.nome||'', labelMap[st]||st, r.id_plano?'ID '+r.id_plano:'—', deps.slice(0,30), normalizeMsg(r.mensagem||'').slice(0,50)];
+    });
+    doc.autoTable({ head: [['CPF','Nome','Situação','Plano','Dependentes','Observação']], body: rows, startY: 28, theme: 'grid', headStyles: { fillColor: [46,196,165] }, styles: { fontSize: 9 } });
+    doc.save(`inclusoes_medicar_${today()}.pdf`);
   }
 
   // ── EXPORTAR HISTÓRICO ──

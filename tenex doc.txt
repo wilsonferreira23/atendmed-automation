@@ -1,0 +1,3070 @@
+Title: Tenex API v2
+
+URL Source: https://docs.tenex.com.br/api/v2/
+
+Published Time: Tue, 03 Mar 2026 14:29:59 GMT
+
+Markdown Content:
+# Tenex API v2
+[NAV ![Image 1: Navbar](https://docs.tenex.com.br/api/v2/images/navbar-6c2f9478.png)](https://docs.tenex.com.br/api/v2/#)
+
+![Image 2: Logo](https://docs.tenex.com.br/api/v2/images/logo-9abd597b.png)
+
+[shell](https://docs.tenex.com.br/api/v2/#)[php](https://docs.tenex.com.br/api/v2/#)[python](https://docs.tenex.com.br/api/v2/#)
+
+*   [Introdução](https://docs.tenex.com.br/api/v2/#introducao)
+    *   [Versões](https://docs.tenex.com.br/api/v2/#versoes)
+    *   [PHP](https://docs.tenex.com.br/api/v2/#php)
+    *   [Python 3](https://docs.tenex.com.br/api/v2/#python-3)
+
+*   [Estrutura Padrão da API](https://docs.tenex.com.br/api/v2/#estrutura-padrao-da-api)
+    *   [Autenticação](https://docs.tenex.com.br/api/v2/#autenticacao)
+    *   [Formatos](https://docs.tenex.com.br/api/v2/#formatos)
+    *   [Tipos de Respostas](https://docs.tenex.com.br/api/v2/#tipos-de-respostas)
+    *   [Tipos de Requisições](https://docs.tenex.com.br/api/v2/#tipos-de-requisicoes)
+    *   [Erros](https://docs.tenex.com.br/api/v2/#erros)
+    *   [Rate Limiting](https://docs.tenex.com.br/api/v2/#rate-limiting)
+    *   [Limitação de Conteúdo](https://docs.tenex.com.br/api/v2/#limitacao-de-conteudo)
+    *   [Paginação](https://docs.tenex.com.br/api/v2/#paginacao)
+    *   [Ordenação](https://docs.tenex.com.br/api/v2/#ordenacao)
+    *   [Filtragem](https://docs.tenex.com.br/api/v2/#filtragem)
+    *   [Expansão de Referências](https://docs.tenex.com.br/api/v2/#expansao-de-referencias)
+
+*   [Serviços](https://docs.tenex.com.br/api/v2/#servicos)
+    *   [Objeto do Serviço](https://docs.tenex.com.br/api/v2/#objeto-do-servico)
+    *   [Listar Serviços](https://docs.tenex.com.br/api/v2/#listar-servicos)
+    *   [Inserir Serviço](https://docs.tenex.com.br/api/v2/#inserir-servico)
+    *   [Atualizar Serviço](https://docs.tenex.com.br/api/v2/#atualizar-servico)
+    *   [Selecionar Serviço](https://docs.tenex.com.br/api/v2/#selecionar-servico)
+    *   [Excluir Serviço](https://docs.tenex.com.br/api/v2/#excluir-servico)
+
+*   [Meios de Pagamento](https://docs.tenex.com.br/api/v2/#meios-de-pagamento)
+*   [Clientes](https://docs.tenex.com.br/api/v2/#clientes)
+    *   [Objeto do Cliente](https://docs.tenex.com.br/api/v2/#objeto-do-cliente)
+    *   [Listar Clientes](https://docs.tenex.com.br/api/v2/#listar-clientes)
+    *   [Inserir Cliente](https://docs.tenex.com.br/api/v2/#inserir-cliente)
+    *   [Atualizar Cliente](https://docs.tenex.com.br/api/v2/#atualizar-cliente)
+    *   [Selecionar Cliente](https://docs.tenex.com.br/api/v2/#selecionar-cliente)
+    *   [Excluir Cliente](https://docs.tenex.com.br/api/v2/#excluir-cliente)
+
+*   [Vendas / Contratos](https://docs.tenex.com.br/api/v2/#vendas-contratos)
+    *   [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda)
+    *   [Listar Vendas](https://docs.tenex.com.br/api/v2/#listar-vendas)
+    *   [Inserir Venda](https://docs.tenex.com.br/api/v2/#inserir-venda)
+    *   [Atualizar Venda](https://docs.tenex.com.br/api/v2/#atualizar-venda)
+    *   [Selecionar Venda](https://docs.tenex.com.br/api/v2/#selecionar-venda)
+    *   [Excluir Venda](https://docs.tenex.com.br/api/v2/#excluir-venda)
+    *   [Cancelar Nota Fiscal](https://docs.tenex.com.br/api/v2/#cancelar-nota-fiscal)
+    *   [Confirmar Recebimento](https://docs.tenex.com.br/api/v2/#confirmar-recebimento)
+    *   [Atualizar Boleto](https://docs.tenex.com.br/api/v2/#atualizar-boleto)
+
+*   [Planos](https://docs.tenex.com.br/api/v2/#planos)
+    *   [Objeto do Plano](https://docs.tenex.com.br/api/v2/#objeto-do-plano)
+    *   [Listar Planos](https://docs.tenex.com.br/api/v2/#listar-planos)
+    *   [Selecionar Plano](https://docs.tenex.com.br/api/v2/#selecionar-plano)
+
+*   [Carteira Virtual](https://docs.tenex.com.br/api/v2/#carteira-virtual)
+*   [CNAE](https://docs.tenex.com.br/api/v2/#cnae)
+*   [Item da Lista de Serviços](https://docs.tenex.com.br/api/v2/#item-da-lista-de-servicos)
+*   [Municípios](https://docs.tenex.com.br/api/v2/#municipios)
+*   [Índices de Reajustes](https://docs.tenex.com.br/api/v2/#indices-de-reajustes)
+*   [Webhooks](https://docs.tenex.com.br/api/v2/#webhooks)
+    *   [Objeto de Webhook](https://docs.tenex.com.br/api/v2/#objeto-de-webhook)
+    *   [Validação de Assinatura de Webhook](https://docs.tenex.com.br/api/v2/#validacao-de-assinatura-de-webhook)
+
+# Introdução
+
+A API da Tenex é organizada baseando-se em REST.
+
+Ela é projetada para ter URLs previsíveis e orientadas a recursos.
+
+Os erros são indicados por códigos de resposta HTTP e uma resposta JSON descrevendo o problema.
+
+Todas as respostas da API serão retornadas em JSON, incluindo erros.
+
+### Versões
+
+Essa é a versão mais recente da API da Tenex. Para a v1, veja a documentação em [API v1](https://docs.tenex.com.br/api/v1/).
+
+Recomendamos que novas implementações utilizem a v2, mesmo em contas antigas.
+
+As duas serão mantidas, porém a v1 não receberá novas funcionalidades.
+
+### PHP
+
+Recomendamos o uso da biblioteca [Guzzle](https://docs.guzzlephp.org/en/stable/) para realizar as chamadas.
+
+Os exemplos em PHP consideram que a bibloteca Guzzle foi instalada utilizando [Composer](https://getcomposer.org/).
+
+### Python 3
+
+Recomendamos o uso da biblioteca [Requests](https://pypi.org/project/requests/) para realizar as chamadas
+
+# Estrutura Padrão da API
+
+Todos os endpoints da API compartilham uma estrutura padrão para:
+
+*   Autenticação
+*   Formatos
+*   Tipos de Respostas
+*   Tipos de Requisições
+*   Erros
+*   Limitação de Conteúdo
+*   Paginação
+*   Ordenação
+*   Filtragem
+*   Expansão de Referências
+
+De forma geral, parâmetros de URL (_Query String_) começando com _ (underscore) são reservados para funções da API e outros parâmetros são considerados filtros.
+
+**Atenção:** Todos dados de entrada e saída da API são em JSON, _Content-Type_ sempre é considerado como sendo _text/json_ e não há suporte para _application/x-www-form-urlencoded_
+
+## Autenticação
+
+> Um exemplo de chamada autenticada:
+> 
+> 
+> Onde **4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo** (sem o ':') é chave de api gerada pelo sistema.
+
+```
+curl "https://suaempresa.tenex.com.br/api/v2/servicos/" \
+    -u "4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo:"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+A Tenex usa chaves de API para permitir acesso a uma instalação.
+
+Para gerar sua chave de API associando a um Perfil acesse:
+
+`https://suaempresa.tenex.com.br/api-chave/`
+
+A autenticação ocorre via [HTTP Basic Auth](http://en.wikipedia.org/wiki/Basic_access_authentication). Informe somente a sua chave de API como nome de usuário. Você não precisa informar uma senha.
+
+Todas as requisições devem ser feitas via HTTPS. A chave de API também precisa estar presente em todas as requisições.
+
+## Formatos
+
+A API da Tenex tem o seguinte padrão de formatos.
+
+| Tipo de Campo | Descrição | Exemplo |
+| --- | --- | --- |
+| data | ISO 8601 somente com ano, mês e dia | 2021-04-25 |
+| data e hora | ISO 8601 completo com fuso horário | 2021-05-20T12:24:59-03:00 |
+| hora | Com 4 dígitos separados por : | 11:20 |
+| monetário | Com até 2 casas decimais (opcionais) e sempre separado por ponto | 14232.22 |
+| percentual | Com até 2 casas decimais (opcionais) e sempre separado por ponto | 55.1 |
+| inteiro | Sem casas decimais | 1234 |
+| texto | Texto em UTF-8 | Descrição |
+
+*   Campos do tipo _data e hora_ devem considerar o fuso horário descrito. Esse pode mudar e por isso deve ser tratado com cuidado.
+*   Campos do tipo Chave Estrangeira (Foreign Key / FK) sempre possuem tanto chave e valor nas respostas.
+
+Por exemplo: no Serviço a chave id_atividade que aponta para o CNAE possui o campo extra atividade que mostrará sempre o texto de exibição dessa atividade. Esse campo de exibição deve ser utilizado só como atalho para evitar uma consulta extra e não é considerado na Inserção ou Atualização.
+
+## Tipos de Respostas
+
+A API retorna dois tipos de respostas em caso de sucesso:
+
+### Registro Único
+
+> Exemplo de Registro Único
+
+```
+{
+    "id": 3,
+    "nome": "Servi\u00e7o Exemplo 3",
+    "status": 1,
+    "id_servico": 104,
+    "id_atividade": 6202300,
+    "discriminacao": "Referente para presta\u00e7\u00e3o de Servi\u00e7o Exemplo 3. \r\nCompet\u00eancia: #venda.mesanterior",
+    "valor": 300,
+    "impostos_percentual": 6,
+    "codigo_tributacao_municipio": "6202300",
+    "servico": "01.04 Elabora\u00e7\u00e3o de programas de computadores, inclusive de jogos eletr\u00f4nicos.",
+    "atividade": "6202-3\/00 Desenvolvimento e licenciamento de programas de computador customiz\u00e1veis"
+}
+```
+
+Um Registro Único representa uma entidade na Tenex, por exemplo, um Cliente, uma Venda ou um Município.
+
+Operações diretamente sobre um registro sempre retornam um Registro Único.
+
+Exemplo: A inserção de um Serviço sempre retornará um Registro Único com o elemento que acabou de ser inserido.
+
+### Listagem de Registros
+
+> Exemplo de Listagem de Registros
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 3,
+        "sort": null,
+        "requestId": "c6dde1d7819e49a25389b52d78486ec601d27795"
+    },
+    "data": [
+        {
+            "id": 5201405,
+            "nome": "Aparecida de Goi\u00e2nia (GO)",
+            "uf": 52
+        },
+        {
+            "id": 5201801,
+            "nome": "Aragoi\u00e2nia (GO)",
+            "uf": 52
+        },
+        {
+            "id": 5208707,
+            "nome": "Goi\u00e2nia (GO)",
+            "uf": 52
+        }
+    ]
+}
+```
+
+Uma listagem padrão da API contém um cabeçalho (_header_) com metadados e um conjunto de dados (_data_) com 0 ou mais registros únicos. Todos os _endpoints_ genéricos retornam listagens e permitem a filtragem, ordenação e paginação dos dados.
+
+*   _header_
+
+Contém metadados úteis com informação de paginação e ordenação da consulta realizada.
+
+| Campo | Descrição |
+| --- | --- |
+| offset | índice do primeiro registro retornado no conjunto geral de dados |
+| limit | limite máximo de registros por resposta |
+| count | contagem total de registros existentes com os critérios de filtragem utilizados |
+| sort | parâmetros de ordenacão utilizados |
+| requestId | hash único para rastreamento do suporte |
+
+*   _data_
+
+Contém a lista de Registros Únicos de acordo com os critérios da busca e segue o formato de cada tipo de entidade sendo selecionada.
+
+## Tipos de Requisições
+
+A API suporta requisições dos métodos do HTTP: GET, POST, PUT e DELETE
+
+| HTTP Method | Descrição |
+| --- | --- |
+| GET | Seleciona um ou múltilos registros |
+| POST | Cria um novo registro |
+| PUT | Atualiza um registro existente |
+| DELETE | Exclui um registro |
+
+## Erros
+
+> Um exemplo de erro numa requisição:
+
+```
+{
+    "code": 401,
+    "message": "Chave de API invalida: 4vOqPRfmql..."
+}
+```
+
+A Tenex usa códigos de resposta HTTP para indicar o sucesso ou falha de uma requisição.
+
+`401 Unauthorized`
+
+De forma geral códigos na faixa de 200-299 representam o sucesso da requisição. Códigos na faixa dos 400-499 representam um erro nos parâmetros informados e códigos na faixa de 500-599 indicam um erro no nosso servidor.
+
+Adicionalmente, retornamos também um objeto JSON no seguinte formato:
+
+`{ "code": "...", "message": "..." }`
+
+Onde:
+
+**code**: o código de erro HTTP retornado (em adição ao retornado no cabeçalho da requisição HTTP)
+
+**message**: breve descrição do problema ocorrido e possível solução
+
+### Códigos de erro comuns
+
+| Código | Nome | Descrição |
+| --- | --- | --- |
+| 400 | Bad Request | Algum parâmetro da requisição é inválido |
+| 401 | Unauthorized | Chave de API inválida ou permissões inválidas (ver Perfil associado à chave da API) |
+| 404 | Not Found | Não há serviço disponível na URL informada |
+| 429 | Too Many Requests | Excesso de requisições (Rate Limiting) |
+| 500 | Internal Server Error | Ocorreu um problema no sistema. Nossa equipe sempre é informada quando isso acontece. |
+| 503 | Service Unavailable | Serviço temporariamente indisponível. Por favor, tente novamente. |
+
+## Rate Limiting
+
+Para garantir desempenho consistente, alta disponibilidade e estabilidade operacional, o uso desta API está sujeito a **limitação de taxa (rate limiting)**.
+
+### Limite de Requisições
+
+*   **Máximo permitido:**`3 requisições por segundo (3 req/s)`
+*   O limite é aplicado de forma contínua.
+*   Requisições que excederem esse limite poderão receber resposta HTTP `429 Too Many Requests`.
+
+### Motivo da Limitação
+
+A política de rate limiting existe para assegurar:
+
+### 1. Estabilidade do Serviço
+
+A API opera sobre infraestrutura compartilhada. Limitar a taxa de requisições evita sobrecarga de recursos computacionais (CPU, memória e I/O), prevenindo degradação de desempenho ou indisponibilidade.
+
+### 2. Qualidade de Serviço (QoS)
+
+O controle de requisições garante latência previsível e desempenho uniforme para todos os clientes, evitando que consumo excessivo de um único consumidor impacte outros usuários.
+
+### 3. Proteção Contra Uso Indevido
+
+A limitação reduz riscos associados a:
+
+*   Loops acidentais de requisição
+
+*   Integrações mal configuradas
+
+*   Ataques automatizados
+
+*   Padrões anômalos de tráfego
+
+### 4. Escalabilidade Sustentável
+
+Manter um teto de requisições permite planejamento de capacidade, dimensionamento adequado da infraestrutura e manutenção de SLAs.
+
+### Tratamento de Excesso de Requisições
+
+Caso o limite seja ultrapassado:
+
+*   A API retornará `HTTP 429 Too Many Requests`.
+*   Recomenda-se implementar: 
+    *   Retry com backoff exponencial
+    *   Controle de concorrência no cliente
+    *   Fila interna de requisições
+
+## Limitação de Conteúdo
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/servicos/?_fields=id,nome"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/?_fields=id,nome',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/?_fields=id,nome', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 3,
+        "sort": null,
+        "requestId": "85b17f9b7e826d8e36bce75ea1b0f93f5afb6a26"
+    },
+    "data": [
+        {
+            "id": 1,
+            "nome": "Servi\u00e7o Exemplo 1"
+        },
+        {
+            "id": 2,
+            "nome": "Servi\u00e7o Exemplo 2"
+        },
+        {
+            "id": 3,
+            "nome": "Servi\u00e7o Exemplo 3"
+        }
+    ]
+}
+```
+
+Requisições da API podem escolher quais campos de um objeto serão retornados.
+
+Para limitar os campos deve-se informar uma lista de campos no parâmetro reservado _\_fields_. Exemplo:
+
+`_fields=id,nome`
+
+Os campos suportados são todos aqueles presentes na estrutura padrão de um objeto.
+
+## Paginação
+
+```
+curl "https://suaempresa.tenex.com.br/api/v2/servicos/?_offset=1&_limit=2" \
+     -u "4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo:"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/?_offset=1&_limit=2',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/?_offset=1&_limit=2', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 1,
+        "limit": 2,
+        "count": 3,
+        "sort": null,
+        "requestId": "0447c8e417756b645c2c0c36c765518d892d57d1"
+    },
+    "data": [
+        {
+            "id": 2,
+            "nome": "Servi\u00e7o Exemplo 2",
+            "status": 1,
+            "id_servico": 104,
+            "id_atividade": 6202300,
+            "discriminacao": "Referente para presta\u00e7\u00e3o de Servi\u00e7o Exemplo 2. \r\nCompet\u00eancia: #venda.mesanterior",
+            "valor": 200,
+            "impostos_percentual": 6,
+            "codigo_tributacao_municipio": "6202300",
+            "servico": "01.04 Elabora\u00e7\u00e3o de programas de computadores, inclusive de jogos eletr\u00f4nicos.",
+            "atividade": "6202-3\/00 Desenvolvimento e licenciamento de programas de computador customiz\u00e1veis"
+        },
+        {
+            "id": 3,
+            "nome": "Servi\u00e7o Exemplo 3",
+            "status": 1,
+            "id_servico": 104,
+            "id_atividade": 6202300,
+            "discriminacao": "Referente para presta\u00e7\u00e3o de Servi\u00e7o Exemplo 3. \r\nCompet\u00eancia: #venda.mesanterior",
+            "valor": 300,
+            "impostos_percentual": 6,
+            "codigo_tributacao_municipio": "6202300",
+            "servico": "01.04 Elabora\u00e7\u00e3o de programas de computadores, inclusive de jogos eletr\u00f4nicos.",
+            "atividade": "6202-3\/00 Desenvolvimento e licenciamento de programas de computador customiz\u00e1veis"
+        }
+    ]
+}
+```
+
+Todas as entidadas registradas na Tenex possuem suporte através da API para obtenção em conjunto. Dessa forma é possível listar vários clientes, serviços ou vendas, por exemplo.
+
+Para controlar os dados retornados utilizamos uma paginação baseada em índices. Sempre iniciando a partir da posição 0 e tendo um limite padrão de retorno de 100 registros.
+
+### Parâmetros da requisição
+
+| Parâmetro | Valor Padrão | Descrição |
+| --- | --- | --- |
+| _offset | 0 | A partir de qual registro os dados serão retornados |
+| _limit | 10 | Número de registros a retornar. Valores possíveis de 1 a 1000 |
+
+## Ordenação
+
+```
+curl "https://suaempresa.tenex.com.br/api/v2/servicos/?_sort=-valor&_fields=id,nome,valor" \
+     -u "4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo:"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/?_sort=-valor&_fields=id,nome,valor',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/?_sort=-valor&_fields=id,nome,valor', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 3,
+        "sort": "-valor",
+        "requestId": "7696d807d3a15707eb26a2dc6d622640c819a8bd"
+    },
+    "data": [
+        {
+            "id": 3,
+            "nome": "Servi\u00e7o Exemplo 3",
+            "valor": 300
+        },
+        {
+            "id": 2,
+            "nome": "Servi\u00e7o Exemplo 2",
+            "valor": 200
+        },
+        {
+            "id": 1,
+            "nome": "Servi\u00e7o Exemplo 1",
+            "valor": 100
+        }
+    ]
+}
+```
+
+É possível ordenar uma listagem por um ou vários campos, em ordem crescente ou decrescente. Caso não seja definida uma ordem a padrão será utilizada e não garantimos que sempre será a mesma.
+
+### Parâmetros da requisição
+
+| Parâmetro | Valor Padrão | Descrição |
+| --- | --- | --- |
+| _sort | null | Qual campo será usado na ordenação. Opcionalmente um - pode ser usado para inverter a ordenação. Uma lista de campos separada por vírgula pode ser usada para ordenação. Exemplos `-nome`, `valor` ou `-nome,valor` |
+
+## Filtragem
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/municipios/?nome\[contains\]=recife"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/municipios/?nome[contains]=recife',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/municipios/?nome[contains]=recife', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 1,
+        "sort": null,
+        "requestId": "8d60ad0ff3dc3601972a5e5fb789324290f47b4d"
+    },
+    "data": [
+        {
+            "id": 2611606,
+            "nome": "Recife (PE)",
+            "uf": 26
+        }
+    ]
+}
+```
+
+Requisições da API de listagem podem ser filtradas com um esquema de operadores disponíveis através de parâmetros da URL. É possível filtrar por qualquer um dos campos de um objeto, porém deve-se observar os operadores de acordo com o tipo de campo filtrado.
+
+O formato de um parâmetro de URL para ser usado como filtro é:
+
+`campo[operador]=valor`
+
+*   _campo_ é o nome do campo no objeto
+*   _operador_ dentro dos colchetes é um dos operadores suportados. [eq] é o padrão caso não informado
+*   _valor_ é o valor a ser usado na filtragem
+
+### Filtragem por registro referenciado
+
+Pode-se filtrar, por exemplo, Clientes que possuem um Contato com certo nome. Para isso o seguinte formato deve ser utilizado:
+
+`secao.campo[operador]=valor`
+
+Onde `secao` é o registro referenciado. Um caso comum seria o Contato dentro da estrutura de Clientes. A seguinte requisição filtraria todo os clientes que possuem um contato com nome "Fulano":
+
+`GET https://suaempresa.tenex.com.br/api/v2/clientes/?_fields=id,cpf,nome&contato.nome[contains]=fulano`
+
+### Múltiplas condições
+
+1.   Vários filtros podem ser usados em conjunto para criar uma consulta com múltiplas condições.
+
+2.   Filtros repetidos para o mesmo campo e operador serão considerados como uma operação _OU_. Exemplo:
+
+`GET https://suaempresa.tenex.com.br/api/v2/servicos/?id=1&id=2`
+
+Trará os serviços de id 1 e 2.
+
+1.   Filtros para campos diferentes são considerados como uma operação _E_. Exemplo:
+
+`GET https://suaempresa.tenex.com.br/api/v2/servicos/?discriminacao[contains]=referente&valor[gte]=150`
+
+Trará os serviços que contém o texto "referente" no campo discriminacao e valor maiores ou igual a 150.
+
+### Lista de operadores suportados
+
+| Operador | Exemplo | Descrição |
+| --- | --- | --- |
+| eq | id=2 ou id[eq]=2 | filtro padrão, sempre considerado de forma implícita quando não se define um operador |
+| neq | id[neq]=2 | é diferente |
+| gt | id[gt]=100 | maior que |
+| lt | id[lt]=200 | menor que |
+| gte | id[gte]=100 | maior que ou igual |
+| lte | id[lte]=200 | menor que ou igual |
+| between | id[between]=10,20 | entre dois valores |
+| isnull | nome[isnull] | é nulo |
+| isnotnull | nome[isnotnull] | não é nulo |
+| contains | nome[contains]=maria | contém o texto |
+| notcontains | nome[notcontains]=joaquim | não contém o texto |
+
+## Expansão de Referências
+
+```
+curl "https://suaempresa.tenex.com.br/api/v2/clientes/?_fields=id,nome&cpf=070.613.880-56&_expand=contatos" \
+    -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo:
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/clientes/?_fields=id,nome&cpf=070.613.880-56&_expand=contatos',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/clientes/?_fields=id,nome&cpf=070.613.880-56&_expand=contatos', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 1,
+        "sort": null,
+        "requestId": "729b0c1db380766de09410d888e9ba4917147f3e"
+    },
+    "data": [
+        {
+            "id": 2,
+            "nome": "Cliente Exemplo 1",
+            "contatos": [
+                {
+                    "id": 1,
+                    "id_pessoa": 2,
+                    "tipo": null,
+                    "principal": null,
+                    "nome": "Fulano",
+                    "cpf": null,
+                    "data_nascimento": null,
+                    "identidade": null,
+                    "email": "fulano@exemplo.com",
+                    "telefone": null,
+                    "celular": null,
+                    "obs": null,
+                    "cep": null,
+                    "id_cidade": null,
+                    "estado": null,
+                    "endereco": null,
+                    "numero": null,
+                    "complemento": null,
+                    "bairro": null,
+                    "cidade": null
+                },
+                {
+                    "id": 2,
+                    "id_pessoa": 2,
+                    "tipo": null,
+                    "principal": null,
+                    "nome": "Sicrano",
+                    "cpf": null,
+                    "data_nascimento": null,
+                    "identidade": null,
+                    "email": "sicrano@exemplo.com",
+                    "telefone": null,
+                    "celular": null,
+                    "obs": null,
+                    "cep": null,
+                    "id_cidade": null,
+                    "estado": null,
+                    "endereco": null,
+                    "numero": null,
+                    "complemento": null,
+                    "bairro": null,
+                    "cidade": null
+                }
+            ]
+        }
+    ]
+}
+```
+
+Utilizando o parâmetro _\_expand_ é possível expandir objetos aninhados. Evitando assim outras consultas para obter dados relacionados.
+
+# Serviços
+
+## Objeto do Serviço
+
+```
+{
+    "id": 1,
+    "nome": "Servi\u00e7o Exemplo 1",
+    "status": 1,
+    "id_servico": 104,
+    "id_atividade": 6202300,
+    "discriminacao": "Referente para presta\u00e7\u00e3o de Servi\u00e7o Exemplo 1. \r\nCompet\u00eancia: #venda.mesanterior",
+    "valor": 100,
+    "impostos_percentual": 6,
+    "codigo_tributacao_municipio": "6202300",
+    "servico": "01.04 Elabora\u00e7\u00e3o de programas de computadores, inclusive de jogos eletr\u00f4nicos.",
+    "atividade": "6202-3\/00 Desenvolvimento e licenciamento de programas de computador customiz\u00e1veis"
+}
+```
+
+### Estrutura do Serviço
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | Chave primária do registro, auto incrementada automaticamente |
+| nome | texto | Nome de exibição |
+| status | inteiro | **1** Ativo **2** Inativo |
+| id_servico | inteiro | Item da Lista de Serviço baseado na [Lei Complementar 116, de 21 de Julho de 2003](http://www.planalto.gov.br/ccivil_03/leis/lcp/lcp116.htm) considerando somente números. Ex: para _1.02 – Programação_ informe _102_ Veja como consultar a lista completa em [Item da Lista de Serviços](https://docs.tenex.com.br/api/v2/#item-da-lista-de-servicos) |
+| servico | texto | Nome de exibição do Item da Lista de Serviço. |
+| id_atividade | inteiro | Aponta para um CNAE no sistema. Veja a lista em [CNAE](https://docs.tenex.com.br/api/v2/#cnae) |
+| atividade | texto | Nome de exibição do CNAE. |
+| discriminacao | texto | Texto descritivo do Serviço |
+| impostos_percentual | percentual | Valor estimado de impostos incidentes. Para impressão em NF |
+| codigo_tributacao_municipio | texto | Código necessário para emissão de NF nas prefeituras. |
+
+## Listar Serviços
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/servicos/"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/',
+    [
+        'auth' => [$apiKey, ''],
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 3,
+        "sort": null,
+        "requestId": "40e691832bec22a1d827d77d12ff95f7a301ed53"
+    },
+    "data": [
+        { SERVICO 1 },
+        { SERVICO 2 },
+        { SERVICO 3 }
+    ]
+}
+```
+
+`GET https://suaempresa.tenex.com.br/api/v2/servicos/`
+
+## Inserir Serviço
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+     -d '{"nome":"Serviço de Teste"}' \
+    "https://suaempresa.tenex.com.br/api/v2/servicos/"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'POST',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/',
+    [
+        'auth' => [$apiKey, ''],
+        'json' => [
+            'nome' => 'Serviço de Teste',
+        ]
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+import json
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.post(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/',
+    auth = (apiKey, ''),
+    data = json.dumps({"nome":"Serviço de Teste"})
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": 4,
+    "nome": "Servi\u00e7o de Teste",
+    "status": 1,
+    "id_servico": null,
+    "id_atividade": null,
+    "discriminacao": null,
+    "valor": 0,
+    "impostos_percentual": 0,
+    "codigo_tributacao_municipio": null,
+    "servico": null,
+    "atividade": null
+}
+```
+
+`POST https://suaempresa.tenex.com.br/api/v2/servicos/`
+
+## Atualizar Serviço
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+     -d '{"nome":"Serviço de Teste - Atualizado"}' \
+     -X PUT \
+    "https://suaempresa.tenex.com.br/api/v2/servicos/4"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'PUT',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/',
+    [
+        'auth' => [$apiKey, ''],
+        'json' => [
+            'nome' => 'Serviço de Teste - Atualizado',
+        ]
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+import json
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.put(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/4',
+    auth = (apiKey, ''),
+    data = json.dumps({"nome":"Serviço de Teste - Atualizado"})
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": 4,
+    "nome": "Servi\u00e7o de Teste - Atualizado",
+    "status": 1,
+    "id_servico": null,
+    "id_atividade": null,
+    "discriminacao": null,
+    "valor": 0,
+    "impostos_percentual": 0,
+    "codigo_tributacao_municipio": null,
+    "servico": null,
+    "atividade": null
+}
+```
+
+`PUT https://suaempresa.tenex.com.br/api/v2/servicos/{ID}`
+
+## Selecionar Serviço
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/servicos/4"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/4',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/4', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+`GET https://suaempresa.tenex.com.br/api//v2/servicos/{ID}`
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": 4,
+    "nome": "Servi\u00e7o de Teste - Atualizado",
+    "status": 1,
+    "id_servico": null,
+    "id_atividade": null,
+    "discriminacao": null,
+    "valor": 0,
+    "impostos_percentual": 0,
+    "codigo_tributacao_municipio": null,
+    "servico": null,
+    "atividade": null
+}
+```
+
+## Excluir Serviço
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    -X DELETE \
+    "https://suaempresa.tenex.com.br/api/v2/servicos/4"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'DELETE',
+    'https://suaempresa.tenex.com.br/api/v2/servicos/4',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.delete(
+    'https://suaempresa.tenex.com.br/api/v2/servicos/4', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+`DELETE https://suaempresa.tenex.com.br/api/v2/servicos/{ID}`
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": "4"
+}
+```
+
+# Meios de Pagamento
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/meios-pagamento/"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/meios-pagamento/',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/meios-pagamento/', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 2,
+        "sort": null,
+        "requestId": "11312ce82dcd26762afddfd3eadc122b755edef2"
+    },
+    "data": [
+        {
+            "id": 4,
+            "nome": "Esp\u00e9cie",
+            "status": 2,
+            "tipo": 1,
+            "multa": 0,
+            "juros": 0
+        },
+        {
+            "id": 7,
+            "nome": "Boleto (Testes)",
+            "status": 1,
+            "tipo": 2,
+            "multa": 2,
+            "juros": 1
+        }
+    ]
+}
+```
+
+Lista de Meios de Pagamento cadastrados na Tenex.
+
+**Essa estrutura está disponível somente para consulta.**
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | chave do Meio de Pagamento |
+| nome | texto | Nome de exibição |
+| status | inteiro | **1** Ativo **2** Inativo |
+| tipo | inteiro | **1** Espécie **2** Boleto **3** Cheque **4** Cartão de Crédito Externo **5** Cartão de Débito Externo **6** Depósito **7** Transferência **9** Cobrança Externa **11** Cartão Online **12** PIX |
+| multa | percentual | Valor percentual da multa por atraso de pagamento |
+| juros | percentual | Valor percentual dos juros mensais por atraso de pagamento |
+
+`GET https://suaempresa.tenex.com.br/api/v2/meios-pagamento/`
+
+# Clientes
+
+## Objeto do Cliente
+
+```
+{
+    "id": 2,
+    "codigo": 1,
+    "data_cadastro": "2020-06-01T16:22:48+00:00",
+    "status": 1,
+    "tipo": 2,
+    "cnpj": null,
+    "nome": "Cliente Exemplo 1",
+    "razao_social": "Cliente Exemplo 1",
+    "inscricao_estadual": null,
+    "inscricao_municipal": null,
+    "cpf": "070.613.880-56",
+    "data_nascimento": "1989-08-10",
+    "identidade": "1234567",
+    "genero": "Masculino",
+    "obs": null,
+    "cep": "52.061-030",
+    "id_cidade": 2611606,
+    "estado": 26,
+    "endereco": "Rua Silveira Lobo",
+    "numero": "32",
+    "complemento": null,
+    "bairro": "Poco",
+    "cidade": "Recife (PE)",
+    "contatos": [
+        {
+            "id": 1,
+            "id_pessoa": 2,
+            "tipo": null,
+            "principal": null,
+            "nome": "Contado de Exemplo 1",
+            "cpf": null,
+            "data_nascimento": null,
+            "identidade": null,
+            "genero": "Masculino",
+            "email": "fulano@exemplo.com",
+            "telefone": null,
+            "celular": null,
+            "obs": null,
+            "cep": null,
+            "id_cidade": null,
+            "estado": null,
+            "endereco": null,
+            "numero": null,
+            "complemento": null,
+            "bairro": null,
+            "cidade": null
+        },
+        {
+            "id": 2,
+            "id_pessoa": 2,
+            "tipo": null,
+            "principal": null,
+            "nome": "Contato de Exemplo 2",
+            "cpf": null,
+            "data_nascimento": null,
+            "identidade": null,
+            "genero": "Feminino",
+            "email": "sicrano@exemplo.com",
+            "telefone": null,
+            "celular": null,
+            "obs": null,
+            "cep": null,
+            "id_cidade": null,
+            "estado": null,
+            "endereco": null,
+            "numero": null,
+            "complemento": null,
+            "bairro": null,
+            "cidade": null
+        }
+    ],
+    "cartoes": [
+        {
+            "id": 2,
+            "id_pessoa": 2,
+            "id_meio_pagamento": 8,
+            "padrao": 1,
+            "titular": "CLIENTE EXEMPLO",
+            "bandeira": "visa",
+            "numero": "************1112",
+            "validade": "2028-11-30",
+            "meio_pagamento": "Cart\u00e3o de Cr\u00e9dito Online (Testes)"
+        }
+    ]
+}
+```
+
+### Estrutura do Cliente
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | chave primária do registro, auto incrementada automaticamente |
+| codigo | inteiro | código do cliente para referência extra |
+| data_cadastro | data e hora | momento da realizaçao do cadastro |
+| status | inteiro | **1** Ativo **2** Inativo |
+| tipo | inteiro | **1** Pessoa Jurídica **2** Pessoa Física |
+| nome | texto | nome de exibição do cliente |
+| cnpj | texto | dados da Pessoa Jurídica |
+| razao_social | texto | dados da Pessoa Jurídica |
+| inscricao_estadual | texto | dados da Pessoa Jurídica |
+| inscricao_municipal | texto | dados da Pessoa Jurídica |
+| cpf | texto | dados da Pessoa Física |
+| data_nascimento | data | dados da Pessoa Física |
+| identidade | texto | dados da Pessoa Física |
+| genero | texto | **1** Feminino **2** Masculino **3** Outro |
+| obs | texto | texto livre para anotações |
+| cep | texto | CEP no formato XX.YYY-ZZZ |
+| id_cidade | inteiro | código da cidade no IBGE. Veja [Municípios](https://docs.tenex.com.br/api/v2/#municipios) |
+| cidade | texto | nome de exibição da cidade. |
+| estado | inteiro | código da Unidade Federativa no IGBE (primeiros dois dígitos do código do município). Veja [Municípios](https://docs.tenex.com.br/api/v2/#municipios) |
+| endereco | texto | dados de endereço |
+| numero | texto | dados de endereço |
+| complemento | texto | dados de endereço |
+| bairro | texto | dados de endereço |
+| contatos | lista | Lista de Contatos conforme estrutura de um Contato |
+| cartoes | lista | Lista de Cartões associados ao cliente conforme estrutura de um cartão |
+| _custom\_..._ | - | Todos os campos customizados serão retornados com o prefixo _custom\__ e seguirão os tipos escolhidos no seu cadastro. Para mais informações contacte nosso suporte. |
+
+### Estrutura do Contato
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | chave primária do registro, auto incrementada automaticamente |
+| id_pessoa | inteiro | chave para o cliente |
+| tipo | texto | tipo de Contato |
+| principal | inteiro | **1** Sim **0** Não |
+| nome | texto | nome do contato Pessoa Física |
+| cpf | texto | CPF |
+| data_nascimento | data | data de nascimento |
+| identidade | texto | número de identidade |
+| genero | texto | **1** Feminino **2** Masculino **3** Outro |
+| email | texto | email do contato |
+| telefone | texto | número de telefone |
+| celular | texto | número de telefone |
+| obs | texto | texto livre para anotações |
+| cep | texto | CEP no formato XX.YYY-ZZZ |
+| id_cidade | inteiro | código da cidade no IBGE. Veja [Municípios](https://docs.tenex.com.br/api/v2/#municipios) |
+| cidade | texto | nome de exibição da cidade. |
+| estado | inteiro | código da Unidade Federativa no IGBE (primeiros dois dígitos do código do município). Veja [Municípios](https://docs.tenex.com.br/api/v2/#municipios) |
+| endereco | texto | dados de endereço |
+| numero | texto | dados de endereço |
+| complemento | texto | dados de endereço |
+| bairro | texto | dados de endereço |
+
+### Estrutura do Cartão
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | chave primária do registro, auto incrementada automaticamente |
+| id_pessoa | inteiro | chave da pessoa |
+| id_meio_pagamento | inteiro | chave do meio de pagamento |
+| meio_pagamento | texto | nome de exibição do meio de pagamento |
+| padrao | inteiro | **1** Sim **0** Não |
+| titular | texto | nome to titular do cartão |
+| bandeira | texto | nome da bandeira |
+| numero | texto | últimos dígitos do número |
+| validade | data | data de validade |
+| codigo | inteiro | três ou quatro dígitos do código de segurança do cartão |
+
+## Listar Clientes
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/clientes/?id=2&id=3&_expand=contatos,cartoes"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/clientes/?id=2&id=3&_expand=contatos,cartoes',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/clientes/?id=2&id=3&_expand=contatos,cartoes', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 3,
+        "sort": null,
+        "requestId": "f42a5bfea3d478e9abc88aefae2dfec252879117"
+    },
+    "data": [
+        { CLIENTE 1 },
+        { CLIENTE 2 },
+        { CLIENTE 3 }
+    ]
+}
+```
+
+`GET https://suaempresa.tenex.com.br/api/v2/clientes/`
+
+## Inserir Cliente
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+     -d '{"tipo":1,"nome":"Cliente de Teste"}' \
+    "https://suaempresa.tenex.com.br/api/v2/clientes/"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'POST',
+    'https://suaempresa.tenex.com.br/api/v2/clientes/',
+    [
+        'auth' => [$apiKey, ''],
+        'json' => [
+            'tipo' => 1,
+            'nome' => 'Cliente de Teste',
+        ]
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+import json
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.post(
+    'https://suaempresa.tenex.com.br/api/v2/clientes/',
+    auth = (apiKey, ''),
+    data = json.dumps({"tipo":1,"nome":"Cliente de Teste"})
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": 7,
+    "codigo": 1,
+    "data_cadastro": "2021-06-16T19:34:17+00:00",
+    "status": 1,
+    "tipo": 1,
+    "cnpj": null,
+    "nome": "Cliente de Teste",
+    "razao_social": "Cliente de Teste",
+    "inscricao_estadual": null,
+    "inscricao_municipal": null,
+    "cpf": null,
+    "data_nascimento": null,
+    "identidade": null,
+    "genero": "Feminino",
+    "obs": null,
+    "cep": null,
+    "id_cidade": null,
+    "estado": null,
+    "endereco": null,
+    "numero": null,
+    "complemento": null,
+    "bairro": null,
+    "cidade": null,
+    "contatos": [],
+    "cartoes": []
+}
+```
+
+`POST https://suaempresa.tenex.com.br/api/v2/clientes/`
+
+## Atualizar Cliente
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+     -d '{"tipo":1,"nome":"Cliente de Teste Alterado"}' \
+     -X PUT \
+    "https://suaempresa.tenex.com.br/api/v2/clientes/7"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'PUT',
+    'https://suaempresa.tenex.com.br/api/v2/clientes/7',
+    [
+        'auth' => [$apiKey, ''],
+        'json' => [
+            'tipo' => 1,
+            'nome' => 'Cliente de Teste - Alterado',
+        ]
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+import json
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.put(
+    'https://suaempresa.tenex.com.br/api/v2/clientes/7',
+    auth = (apiKey, ''),
+    data = json.dumps({"tipo":1,"nome":"Cliente de Teste - Alterado"})
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": 7,
+    "codigo": 1,
+    "data_cadastro": "2021-06-16T19:34:17+00:00",
+    "status": 1,
+    "tipo": 1,
+    "cnpj": null,
+    "nome": "Cliente de Teste - Alterado",
+    "razao_social": "Cliente de Teste - Alterado",
+    "inscricao_estadual": null,
+    "inscricao_municipal": null,
+    "cpf": null,
+    "data_nascimento": null,
+    "identidade": null,
+    "genero": "Feminino",
+    "obs": null,
+    "cep": null,
+    "id_cidade": null,
+    "estado": null,
+    "endereco": null,
+    "numero": null,
+    "complemento": null,
+    "bairro": null,
+    "cidade": null,
+    "contatos": [],
+    "cartoes": []
+}
+```
+
+`PUT https://suaempresa.tenex.com.br/api/v2/clientes/{ID}`
+
+## Selecionar Cliente
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/clientes/2"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/clientes/2',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/clientes/2?_expand=cartoes', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+`GET https://suaempresa.tenex.com.br/api/v2/clientes/{ID}`
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": 2,
+    "codigo": 1,
+    "data_cadastro": "2020-06-01T16:22:48+00:00",
+    "status": 1,
+    "tipo": 2,
+    "cnpj": null,
+    "nome": "Cliente Exemplo 1",
+    "razao_social": "Cliente Exemplo 1",
+    "inscricao_estadual": null,
+    "inscricao_municipal": null,
+    "cpf": "070.613.880-56",
+    "data_nascimento": "1989-08-10",
+    "identidade": "1234567",
+    "genero": "Feminino",
+    "obs": null,
+    "cep": "52.061-030",
+    "id_cidade": 2611606,
+    "estado": 26,
+    "endereco": "Rua Silveira Lobo",
+    "numero": "32",
+    "complemento": null,
+    "bairro": "Poco",
+    "cidade": "Recife (PE)",
+    "cartoes": [
+        {
+            "id": 2,
+            "id_pessoa": 2,
+            "id_meio_pagamento": 8,
+            "padrao": 1,
+            "titular": "CLIENTE EXEMPLO",
+            "bandeira": "visa",
+            "numero": "************1112",
+            "validade": "2028-11-30",
+            "meio_pagamento": "Cart\u00e3o de Cr\u00e9dito Online (Testes)"
+        }
+    ]
+}
+```
+
+## Excluir Cliente
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    -X DELETE \
+    "https://suaempresa.tenex.com.br/api/v2/clientes/7"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'DELETE',
+    'https://suaempresa.tenex.com.br/api/v2/clientes/7',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.delete(
+    'https://suaempresa.tenex.com.br/api/v2/clientes/7', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+`DELETE https://suaempresa.tenex.com.br/api/v2/clientes/{ID}`
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": "7"
+}
+```
+
+# Vendas / Contratos
+
+## Objeto da Venda
+
+```
+{
+    "id": 39,
+    "agendamento": 1,
+    "agendamento_data": null,
+    "agendamento_frequencia": null,
+    "agendamento_automatico": 1,
+    "agendamento_repetir": 1,
+    "agendamento_data_fim": null,
+    "agendamento_numero": 0,
+    "agendamento_dados": {
+        "modelo": "Cobran\u00e7a - Venda",
+        "anexo_1": null,
+        "anexo_2": null,
+        "id_venda": 39,
+        "id_modelo": 1,
+        "anexo_nfse": 1,
+        "id_contato": -1,
+        "anexo_boleto": 1
+    },
+    "agendamento_data_geracao": "2020-06-08T17:53:18+00:00",
+    "agendamento_sequencia": 3,
+    "agendamento_ativo": 1,
+    "agendamento_ativo_data": "2020-06-08T17:49:29+00:00",
+    "agendamento_ultima_ocorrencia": null,
+    "data": "2020-05-01",
+    "id_cliente": 3,
+    "discriminacao": "Referente para presta\u00e7\u00e3o de Servi\u00e7o Exemplo 2. \r\nCompet\u00eancia: Abril de 2020",
+    "desconto": 0,
+    "valor_venda": 200,
+    "metodo_cobranca": 1,
+    "email_enviado": "2020-06-08T17:53:18+00:00",
+    "email_erro": null,
+    "email_entrega": null,
+    "email_leitura": null,
+    "sms_enviado": null,
+    "sms_erro": null,
+    "whatsapp_enviado": null,
+    "whatsapp_erro": null,
+    "whatsapp_entrega": null,
+    "whatsapp_leitura": null,
+    "id_meio_pagamento": 8,
+    "parcelas": [
+        {
+            "id": 39,
+            "id_venda": 39,
+            "parcela": 1,
+            "numero": "00003901",
+            "data_vencimento": "2020-11-10",
+            "data_credito": null,
+            "data_vencimento_original": null,
+            "valor": 200,
+            "valor_original": 0,
+            "valor_recebido": 0,
+            "valor_tarifas": 0,
+            "status": 1,
+            "data_recebimento": null,
+            "data_repasse": null,
+            "pdf_url": null,
+            "linha_digitavel": null,
+            "pix_imagem_url": null,
+            "pix_codigo": null
+        }
+    ],
+    "nfse_dados": {
+        "aliquota": null,
+        "rps_tipo": "1",
+        "valor_ir": null,
+        "rps_serie": "FSIMP",
+        "valor_pis": null,
+        "iss_retido": "2",
+        "valor_csll": null,
+        "valor_inss": null,
+        "id_municipio": "2611606",
+        "valor_cofins": null,
+        "valor_deducoes": null,
+        "outras_retencoes": null,
+        "impostos_federais": "2",
+        "natureza_operacao": "1",
+        "id_municipio_emissao": "2611606"
+    },
+    "cliente": "Cliente Exemplo 2",
+    "meio_pagamento": "Cart\u00e3o de Cr\u00e9dito Online (Testes)",
+    "parcela_status": 5,
+    "nfse_status": 1,
+    "pagamento_online_codigo": "lW3hCH6XaEw0htOvCAwVVA",
+    "itens": [
+        {
+            "id": 40,
+            "id_venda": 39,
+            "recorrente": 1,
+            "id_servico": 2,
+            "valor": 200,
+            "qtd": 1,
+            "total": 200,
+            "servico": "Servi\u00e7o Exemplo 2"
+        }
+    ]
+}
+```
+
+### Estrutura da Venda
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | chave primária do registro, auto incrementada automaticamente |
+| data 1 | data | data de registro da venda |
+| agendamento | inteiro | se é um Contrato **1** Sim **0** Não |
+| agendamento_data 1 | data | data de geração esperada dessa venda |
+| agendamento_frequencia | inteiro | **0** Somente uma Vez **2** Bimestral **3** Trimestral **6** Semestral **12** Anual |
+| agendamento_automatico | inteiro | determina se a venda será gerada automaticamente no dia agendamento_data **1** Sim **0** Não |
+| agendamento_repetir | inteiro | opções extra de controle de agendamento: **1** Sempre **2** Qtd. de Ocorrências **3** Data Específica |
+| agendamento_data_fim | data | no caso de **3** Data Específica, determina a data de última ocorrência |
+| agendamento_numero | inteiro | no caso de **2** Qtd. de Ocorrências, determina quantas ocorrências da venda existirão |
+| agendamento_ativo | inteiro | determinar se o agendamento está ativo ou pausado **1** Ativo **0** Pausado |
+| agendamento_ativo_data 2 | data e hora | data de última modificação do _agendamento\_ativo_ |
+| agendamento_ultima_ocorrencia 2 | inteiro | **1** Sim - essa venda é a última de uma sequência de agendamento |
+| agendamento_data_geracao 2 | data | data de geração de uma venda Cadastrada originária de um Contrato |
+| agendamento_sequencia 2 | inteiro | ordem de geração de uma venda Cadastrada originária de um Contrato |
+| id_cliente | inteiro | Id do cliente relacionado a essa venda |
+| cliente | inteiro | Nome de exibição do cliente |
+| discriminacao | texto | texto descritivo da venda que também será utilizado na emissão da Nota Fiscal |
+| desconto | monetário | desconto dado sobre o valor total dos serviços |
+| valor_venda | monetário | valor da venda, usado como base para emissão de NF mas não necessariamente o valor que será cobrado em parcelas |
+| metodo_cobranca | inteiro | **1** Emitir NF Agora **2** Aguardar Pagamento para Emitir NF **3** Não emitir NF |
+| email_enviado 2 | data e hora | informação de envio de email de cobrança para essa venda |
+| email_erro 2 | data e hora | informação de erro de envio de email, caso haja |
+| email_entrega 2 | data e hora | informação de entrega de email, caso haja |
+| email_leitura 2 | data e hora | informação de leitura de email, caso haja |
+| sms_enviado 2 | data e hora | informação de envio de sms, caso haja |
+| sms_erro 2 | data e hora | informação de envio de sms, caso haja |
+| whatsapp_enviar | inteiro | **1** Sim **2** Não |
+| whatsapp_enviado 2 | data e hora | informação de envio de whatsapp, caso haja |
+| whatsapp_erro 2 | data e hora | informação de erro de whatsapp, caso haja |
+| whatsapp_entrega 2 | data e hora | informação de entrega de whatsapp, caso haja |
+| whatsapp_leitura 2 | data e hora | informação de leitura de whatsapp, caso haja |
+| id_meio_pagamento | inteiro | id do meio de pagamento a ser utilizado |
+| meio_pagamento | texto | nome de exibição do meio de pagamento |
+| parcela_status 2 | inteiro | **1** Pendente **2** Quitado **3** Recebimento Parcial **4** Cancelado **5** Vencido |
+| pagamento_online_codigo 2 | texto | Código único para essa venda permitindo utilização da página de pagamento online na URL com formato https://suaempresa.tenex.com.br/fatura/<pagamento_online_codigo> |
+| nfse_status 2 | inteiro | **1** Emitida **2** Cancelada **3** Pendente **4** Erro |
+
+**Observações**
+
+1 Para Vendas Cadastradas a _data_ deve ser preenchida, caso contrário _agendamento\_data_ deve ser preenchido e o registro será um Contrato/Recorrência
+
+2 Campos preenchidos automaticamente pelo sistema para somente leitura nas respostas.
+
+### Estrutura dos Dados de Agendamento
+
+Essa estrutura é opcional e determina parâmetros extras para o envio do email na venda.
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| anexo_N | texto | onde N é um número maior ou igual a 1: anexo manualmente incluído no email |
+| id_venda | inteiro | Id da Venda |
+| id_modelo | inteiro | Id do Modelo a ser usado no envio |
+| modelo | texto | nome de exibição do modelo de email |
+| anexo_nfse | inteiro | determina se será anexado o PDF da NF (quando existe) |
+| anexo_boleto | inteiro | determina se será anexado o PDF do BOleto (quando existe) |
+| id_contato | inteiro | _-1_ para enviar para os Contatos Principais ou o Id do Contato relacionado ao cliente dessa venda |
+
+### Estrutura dos Dados de NFS-e
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| aliquota | monetário | alíquota do ISS |
+| iss_retido | monetário | **1** Sim **2** Não |
+| rps_tipo | monetário | **1** Normal **2** Misto **3** Cupom |
+| rps_serie | texto | 1 a 5 caracteres descrevendo a série do RPS |
+| valor_ir | monetário | valor do IR retido |
+| valor_pis | monetário | valor do PIS retido |
+| valor_csll | monetário | valor do CSLL retido |
+| valor_inss | monetário | valor do INSS retido |
+| valor_cofins | monetário | valor do COFINS retido |
+| valor_deducoes | monetário | valor total de outras deduções |
+| outras_retencoes | monetário | valor de outras retenções |
+| impostos_federais | inteiro | Impostos Federais Retidos: **1** Sim **2** Não |
+| natureza_operacao | inteiro | **1** Tributada no Município **2** Tributado fora do Município **3** Isento **4** Imune **5** Suspenso por Decisão Judicial **6** Suspenso por Procedimento Admin. **51** Exportação de Serviços |
+| id_municipio | inteiro | município de prestação dos serviços da NF, código no IBGE. Veja [Municípios](https://docs.tenex.com.br/api/v2/#municipios) |
+| id_municipio_emissao | inteiro | município de emissão da NF, código no IBGE. Veja [Municípios](https://docs.tenex.com.br/api/v2/#municipios) |
+
+Os campos necessários para emissão de NF variam conforme municípios. Alguns munícipios, por exemplo, requerem o valor da alíquota de ISS informada e outros não.
+
+### Estrutura dos Dados das Parcelas
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | chave primária do registro, auto incrementada automaticamente |
+| id_venda 1 | inteiro | Id da Venda |
+| parcela | inteiro | número de sequência da parcela na venda começando em 1 |
+| numero | texto | número da parcela gerado automaticamente pelo sistema |
+| data_vencimento | data | data de vencimento da parcela |
+| data_credito | data | data estimada de crédito de acordo com o meio de pagamento e informações recebidas na conciliação |
+| data_vencimento_original | data | data original antes da atualização da parcela |
+| valor | monetário | valor efetivo da cobrança |
+| valor_original | monetário | valor original antes da atualização da parcela |
+| valor_recebido | monetário | valor efetivamente recebimento na conciliação bancária ou preenchido manualmente pelo usuário |
+| valor_tarifas 1 | monetário | total de tarifas cobradas no meio de pagamento |
+| status | inteiro | **1** Pendente **2** Quitado **3** Recebimento Parcial **4** Cancelado **5** Vencido |
+| data_recebimento | data e hora | Data do recebimento realizado |
+| data_repasse 1 | data | Data de repasse realizado para meios de pagamento com Repasse através de terceiros |
+| pdf_url 1 | texto | URL para download do PDF para boletos emitidos |
+| linha_digitavel 1 | texto | linha digitável para boletos emitidos |
+| pix_imagem_url 1 | texto | URL para download da imagem com QR Code PIX |
+| pix_codigo 1 | texto | código "Copia e Cola" para PIX |
+
+1 Campos preenchidos automaticamente pelo sistema para somente leitura nas respostas.
+
+### Estrutura dos Dados dos Itens das Venda (Serviços)
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | chave primária do registro, auto incrementada automaticamente |
+| id_venda | inteiro | Id da Venda |
+| recorrente | inteiro | Determinar se recorrente ou não. Se não for recorrente não será incluído na próxima ocorrência do Contrato |
+| id_servico | inteiro | Id do Serviço nesse item |
+| servico | texto | Nome de exibição do Serviço da venda |
+| valor | monetário |  |
+| qtd | monetário/decimal | Quantidade cobrada do Serviço |
+| total | montário | Calculado com Valor * Qtd |
+
+## Listar Vendas
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/vendas/?id=39&id=40"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/vendas/?id=39&id=40',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/vendas/?id=39&id=40', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 3,
+        "sort": null,
+        "requestId": "f42a5bfea3d478e9abc88aefae2dfec252879117"
+    },
+    "data": [
+        { VENDA 1 },
+        { VENDA 2 }
+    ]
+}
+```
+
+`GET https://suaempresa.tenex.com.br/api/v2/vendas/`
+
+## Inserir Venda
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+     -d '{"agendamento":1,"agendamento_data":"2021-06-20","agendamento_frequencia":1,"agendamento_repetir":1,"agendamento_automatico":1,"discriminacao":"Teste da Tenex","id_cliente":2,"id_meio_pagamento":7,"metodo_cobranca":2,"valor_venda":149.99,"nfse_dados":{"rps_tipo":1,"rps_serie":"FSIMP"},"itens":[{"recorrente":1,"id_servico":2,"valor":200,"qtd":1,"total":200}],"parcelas":[{"data_vencimento":"2021-06-30","valor":79.99},{"data_vencimento":"2021-07-30","valor":80}]}' \
+    "https://suaempresa.tenex.com.br/api/v2/vendas/"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'POST',
+    'https://suaempresa.tenex.com.br/api/v2/vendas/',
+    [
+        'auth' => [$apiKey, ''],
+        'json' => [
+            "agendamento" => 1,
+            "agendamento_data" => "2021-06-20",
+            "agendamento_frequencia" => 1, // frequencia mensagel
+            "agendamento_repetir" => 1, // repetir sempre
+            'agendamento_automatico' => 1, // realizar geração automaticamente
+            "discriminacao" => "Teste da Tenex",
+            "id_cliente" => 2,
+            "id_meio_pagamento" => 7,
+            "metodo_cobranca" => 2, // aguardar pagamento para emitir FS
+            "valor_venda" => 149.99,
+            "nfse_dados" => [
+                "rps_tipo" => 1,
+                "rps_serie" => "FSIMP",
+            ],
+            "itens" => [
+                [
+                    "recorrente" => 1,
+                    "id_servico" => 2,
+                    "valor" => 200,
+                    "qtd" => 1,
+                    "total" => 200,
+                ]
+            ],
+            "parcelas" => [
+                [
+                    "data_vencimento" => "2021-06-30",
+                    "valor" => 79.99,
+                ],
+                [
+                    "data_vencimento" => "2021-07-30",
+                    "valor" => 80,
+                ]
+            ]
+        ]
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+import json
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.post(
+    'https://suaempresa.tenex.com.br/api/v2/vendas/',
+    auth = (apiKey, ''),
+    data = json.dumps(
+        {
+            "agendamento": 1,
+            "agendamento_data": "2021-06-20",
+            "agendamento_frequencia": 1,
+            "agendamento_repetir": 1,
+            "agendamento_automatico": 1,
+            "discriminacao": "Teste da Tenex",
+            "id_cliente": 2,
+            "id_meio_pagamento": 7,
+            "metodo_cobranca": 2,
+            "valor_venda": 149.99,
+            "nfse_dados": {
+            "rps_tipo": 1,
+            "rps_serie": "FSIMP"
+            },
+            "itens": [
+            {
+              "recorrente": 1,
+              "id_servico": 2,
+              "valor": 200,
+              "qtd": 1,
+              "total": 200
+            }
+            ],
+            "parcelas": [
+            {
+              "data_vencimento": "2021-06-30",
+              "valor": 79.99
+            },
+            {
+              "data_vencimento": "2021-07-30",
+              "valor": 80
+            }
+            ]
+        }
+)
+)
+
+print(res.text)
+```
+
+> Uma estrutura no formato descrito no [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda) será retornada.
+
+`POST https://suaempresa.tenex.com.br/api/v2/vendas/`
+
+## Atualizar Venda
+
+A atualização da venda requer o envio de um JSON equivalente ao recebido na resposta da requisição de Selecionar Venda.
+
+> Uma estrutura no formato descrito no [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda) será retornada.
+
+`POST https://suaempresa.tenex.com.br/api/v2/vendas/{ID}`
+
+## Selecionar Venda
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/vendas/39"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/vendas/39',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/vendas/39', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+`GET https://suaempresa.tenex.com.br/api/v2/vendas/{ID}`
+
+> Uma estrutura no formato descrito no [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda) será retornada.
+
+## Excluir Venda
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    -X DELETE \
+    "https://suaempresa.tenex.com.br/api/v2/vendas/39"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'DELETE',
+    'https://suaempresa.tenex.com.br/api/v2/vendas/39',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.delete(
+    'https://suaempresa.tenex.com.br/api/v2/vendas/39', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+`DELETE https://suaempresa.tenex.com.br/api/v2/vendas/{ID}`
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "id": "39"
+}
+```
+
+## Cancelar Nota Fiscal
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+     -d '{"cancelamento_codigo":1}' \
+    "https://suaempresa.tenex.com.br/api/v2/vendas/42/nfse-cancelar"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'POST',
+    'https://suaempresa.tenex.com.br/api/v2/vendas/42/nfse-cancelar',
+    [
+        'auth' => [$apiKey, ''],
+        'json' => [
+            'cancelamento_codigo' => 1,
+        ]
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+import json
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.put(
+    'https://suaempresa.tenex.com.br/api/v2/vendas/42/nfse-cancelar',
+    auth = (apiKey, ''),
+    data = json.dumps({"cancelamento_codigo":1})
+)
+
+print(res.text)
+```
+
+`POST https://suaempresa.tenex.com.br/api/v2/vendas/{ID}/nfse-cancelar`
+
+> Uma estrutura no formato descrito no [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda) será retornada.
+
+### Objeto da Requisição
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| cancelamento_codigo* | inteiro | código de cancelamento: **1** Erro de Emissão **2** Serviço não Prestado **3** Duplicidade: **4** Outros |
+| cancelamento_motivo* | texto | descrição textual do motivo do cancelamento. Deve conter pelo menos 15 caracteres. |
+
+_Campos marcados com * são obrigatórios._
+
+## Confirmar Recebimento
+
+Faz a confirmação de recebimento de uma venda.
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+     -d '{"data_recebimento":"2020-06-22"}' \
+    "https://suaempresa.tenex.com.br/api/v2/vendas/42/recebimento-confirmar"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'POST',
+    'https://suaempresa.tenex.com.br/api/v2/vendas/42/recebimento-confirmar',
+    [
+        'auth' => [$apiKey, ''],
+        'json' => [
+            'data_recebimento' => '2020-06-22',
+        ]
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+import json
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.put(
+    'https://suaempresa.tenex.com.br/api/v2/vendas/42/recebimento-confirmar',
+    auth = (apiKey, ''),
+    data = json.dumps({"data_recebimento":"2020-06-22"})
+)
+
+print(res.text)
+```
+
+`POST https://suaempresa.tenex.com.br/api/v2/vendas/{ID}/recebimento-confirmar`
+
+> Uma estrutura no formato descrito no [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda) será retornada.
+
+### Objeto da Requisição
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| data_recebimento* | data | data de recebimento |
+| id_parcela | data | obrigatório só se a venda tiver mais de uma parcela. |
+| valor_recebido | monetário | será considerado o Valor da Parcela caso não informado |
+| obs | text | observações a serem registradas no histórico da parcela |
+
+_Campos marcados com * são obrigatórios._
+
+## Atualizar Boleto
+
+Faz a atualização de um boleto modificando data de vencimento e valor.
+
+Todos os valores e informações devem ser definidos na chamada realizada. Não há cálculo automático de multa e juros.
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+     -d '{"id_parcela":42,"valor_novo":105.22,"data_vencimento_novo":"2020-06-30"}' \
+    "https://suaempresa.tenex.com.br/api/v2/vendas/42/boleto-atualizar"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'POST',
+    'https://suaempresa.tenex.com.br/api/v2/vendas/42/boleto-atualizar',
+    [
+        'auth' => [$apiKey, ''],
+        'json' => [
+            'id_parcela' => 42,
+            'valor_novo' => 105.22,
+            'data_vencimento_novo' => '2020-06-30',
+        ]
+    ]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+import json
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.put(
+    'https://suaempresa.tenex.com.br/api/v2/vendas/42/boleto-atualizar',
+    auth = (apiKey, ''),
+    data = json.dumps({"id_parcela":42,"valor_novo":105.22,"data_vencimento_novo":"2020-06-30"})
+)
+
+print(res.text)
+```
+
+`POST https://suaempresa.tenex.com.br/api/v2/vendas/{ID}/boleto-atualizar`
+
+> Uma estrutura no formato descrito no [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda) será retornada.
+
+### Objeto da Requisição
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id_parcela* | ingteiro | Id da parcela sendo atualizada |
+| data_vencimento_novo* | data | nova data de vencimento |
+| valor_novo* | monetário | novo valor |
+| multa | percentual | percentual da multa |
+| multa_total | monetário | valor total da multa aplicada |
+| juros_mensal | percentual | percentual dos juros mensais |
+| juros_mensal_total | monetário | valor total do juros aplicado |
+
+_Campos marcados com * são obrigatórios._
+
+# Planos
+
+Essa estrutura está disponível somente para consulta.
+
+## Objeto do Plano
+
+```
+{
+    "id": 36,
+    "titulo": "CONTRATO TENEX",
+    "subtitulo": null,
+    "detalhamento": "...",
+    "valor": 0,
+    "frequencia_exibida": 1,
+    "frequencia_exibida_texto_customizado": null,
+    "comentario": null,
+    "texto_botao": "Contratar",
+    "mensagem_confirmacao": null,
+    "termos_uso": null,
+    "cancelamento_impedir": 0,
+    "impedir_alteracao_itens": 1,
+    "personalizavel": 1,
+    "frequencia": 0,
+    "agendamento_automatico": 1,
+    "agendamento_repetir": 1,
+    "agendamento_data_fim": null,
+    "agendamento_numero": null,
+    "discriminacao": "Referente contrata\u00e7\u00e3o da Tenex - ag\u00eancia Full",
+    "desconto": null,
+    "metodo_cobranca": 3,
+    "nfse_dados": ...,
+    "identificador": "959c865e-7825-46cf-aca6-a771d4f07b36",
+    "status": 2,
+    "itens": [
+        {
+            "id": 41,
+            "id_plano": 36,
+            "id_servico": 79,
+            "emitir_cobranca": 1,
+            "valor": 0,
+            "qtd_padrao": 1,
+            "qtd_maxima": null,
+            "qtd_flexivel": null,
+            "servico": "Contrata\u00e7\u00e3o Tenex"
+        }
+    ],
+    "meios_pagamento": [
+        {
+            "id": 120,
+            "id_plano": 36,
+            "data_pagamento_flexivel": 0,
+            "id_meio_pagamento": 34,
+            "permitir_preenchimento_depois": 1,
+            "meio_pagamento": "Cart\u00e3o (parcelado em at\u00e9 12x) - Fatura de Implanta\u00e7\u00e3o"
+        },
+        {
+            "id": 121,
+            "id_plano": 36,
+            "data_pagamento_flexivel": 0,
+            "id_meio_pagamento": 27,
+            "permitir_preenchimento_depois": 0,
+            "meio_pagamento": "PIX QrCode (\u00e0 vista) - Fatura de Implanta\u00e7\u00e3o"
+        }
+    ]
+}
+```
+
+### Estrutura do Plano
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | Chave primária do registro, auto incrementada automaticamente |
+| titulo | texto | Título do plano |
+| subtitulo | texto | Subtítulo do plano |
+| detalhamento | texto (HTML) | Conteúdo a ser exibido no detalhamento nos "Links de Vendas" |
+| valor | monetário | Valor a ser exibido |
+| frequencia_exibida | inteiro | Define se será exibida a frequência do plano (1) ou um texto customizado (2) |
+| frequencia_exibida_texto_customizado | texto | Texto customizado a ser exibido |
+| comentario | texto | Comentário sobre o plano |
+| texto_botao | texto | Texto do botão para iniciar a contratação |
+| mensagem_confirmacao | texto | Mensagem a ser exibida no final da contratação |
+| termos_uso | arquivo | Arquivo com os termos de uso |
+| cancelamento_impedir | inteiro | Se marcado como 1, impede o cancelamento self-service pela Área do Cliente |
+| impedir_alteracao_itens | inteiro | Se marcado como 1, impede que o cliente altere os itens contratados pela Área do Cliente |
+| personalizavel | inteiro | Valor e frequência flexíveis |
+| frequencia | inteiro | **0** Somente uma vez **2** Bimestral **3** Trimestral **6** Semestral **12** Anual |
+| agendamento_automatico | inteiro | Determina se a cobrança será gerada automaticamente no dia definido em agendamento_data **1** Sim **0** Não |
+| agendamento_repetir | inteiro | Opções extras de controle de agendamento: **1** Sempre **2** Qtd. de ocorrências **3** Data específica |
+| agendamento_data_fim | data | No caso de **3** Data específica, determina a data da última ocorrência |
+| agendamento_numero | inteiro | No caso de **2** Qtd. de ocorrências, determina quantas ocorrências existirão |
+| discriminacao | texto | Texto a ser exibido nas cobranças emitidas |
+| metodo_cobranca | inteiro | **1** Emitir NF agora **2** Aguardar pagamento para emitir NF **3** Não emitir NF |
+| nfse_dados | objeto | Veja [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda) |
+| identificador 1 | texto | Código a ser usado na URL de contratação para identificar o plano escolhido |
+| status | inteiro | Ativo (1) ou Inativo (2) |
+| itens 2 | objeto | Lista dos itens (serviços) a serem gerados na cobrança emitida |
+| meios_pagamento 2 | objeto | Lista dos meios de pagamento que os clientes podem selecionar durante a contratação |
+
+**Observações**
+
+1 Campos preenchidos automaticamente pelo sistema, apenas para leitura nas respostas.
+
+2 Deve ser feita a requisição com `_expand` para que seja incluído na resposta.
+
+ Por exemplo: `?_expand=meios_pagamento,itens` para incluir tanto os dados dos itens quanto dos meios de pagamento.
+
+### Estrutura dos Dados de NFS-e
+
+Veja [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda)
+
+### Estrutura dos Dados dos Itens (Serviços)
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | Chave primária do registro, auto incrementada automaticamente |
+| id_plano | inteiro | ID do plano |
+| id_servico | inteiro | ID do serviço |
+| servico | texto | Nome de exibição do serviço |
+| valor | monetário | Valor individual do serviço |
+| qtd | monetário/decimal | Quantidade cobrada do serviço |
+| total 1 | monetário | Calculado com Valor × Qtd |
+
+1 Campos preenchidos automaticamente pelo sistema, apenas para leitura nas respostas.
+
+### Estrutura dos Dados dos Meios de Pagamento
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | Chave primária do registro, auto incrementada automaticamente |
+| id_plano | inteiro | ID do plano |
+| data_pagamento_flexivel | inteiro | Determina se a data de pagamento é flexível |
+| id_meio_pagamento | inteiro | ID do meio de pagamento |
+| meio_pagamento | texto | Nome de exibição do meio de pagamento |
+| permitir_preenchimento_depois | inteiro | Se marcado como 1, determina que os dados do cartão de crédito podem ser preenchidos posteriormente |
+
+## Listar Planos
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/planos/?id=39&id=40"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/planos/?id=39&id=40',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/planos/?id=39&id=40', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 3,
+        "sort": null,
+        "requestId": "f42a5bfea3d478e9abc88aefae2dfec252879117"
+    },
+    "data": [
+        { PLANO 1 },
+        { PLANO 2 }
+    ]
+}
+```
+
+`GET https://suaempresa.tenex.com.br/api/v2/planos/`
+
+## Selecionar Plano
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/planos/39"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/planos/39',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/planos/39', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+`GET https://suaempresa.tenex.com.br/api/v2/planos/{ID}`
+
+> Uma estrutura no formato descrito no [Objeto do Plano](https://docs.tenex.com.br/api/v2/#objeto-do-plano) será retornada.
+
+# Carteira Virtual
+
+> Atenção: O CPF deve ser enviado sem máscara `GET https://suaempresa.tenex.com.br/api/v2/carteira-virtual/11122233344`
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/carteira-virtual/11122233344"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/carteira-virtual/11122233344',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/carteira-virtual/11122233344', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+[
+  {
+    "nome": "Nome do Cliente da Silva",
+    "titular": null,
+    "cpf": "111.222.444-55",
+    "cnpj": null,
+    "carteira_virtual_status": true,
+    "planos_contratados": [
+      {
+        "id": 20,
+        "id_plano": null,
+        "id_cliente": 2,
+        "data_inicio_vigente": "2024-08-27",
+        "data_fim_vigente": "2024-10-01",
+        "carteira_virtual_data_liberacao": null,
+        "carteira_virtual_status": true
+      },
+      {
+        "id": 26,
+        "id_plano": 1,
+        "id_cliente": 2,
+        "data_inicio_vigente": "2024-08-27",
+        "data_fim_vigente": "2024-10-01",
+        "carteira_virtual_data_liberacao": null,
+        "carteira_virtual_status": true
+      }
+    ]
+  },
+  {
+    "nome": "Filho do Cliente da Silva",
+    "titular": "Nome do Cliente da Silva",
+    "cpf": "555.666.777-88",
+    "cnpj": null,
+    "carteira_virtual_status": true,
+    "planos_contratados": [
+      {
+        "id": 20,
+        "id_plano": null,
+        "id_cliente": 2,
+        "data_inicio_vigente": "2024-08-27",
+        "data_fim_vigente": "2024-10-01",
+        "carteira_virtual_data_liberacao": null,
+        "carteira_virtual_status": true
+      },
+      {
+        "id": 26,
+        "id_plano": 1,
+        "id_cliente": 2,
+        "data_inicio_vigente": "2024-08-27",
+        "data_fim_vigente": "2024-10-01",
+        "carteira_virtual_data_liberacao": null,
+        "carteira_virtual_status": true
+      }
+    ]
+  }
+]
+```
+
+Permite executar a busca de carteira virtual de um cliente e seus dependentes.
+
+**Estrutura de Consulta da Carteira Virtual**
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| nome | texto | Nome do cliente ou dependente. |
+| titular | texto | Nome do titular da carteira virtual (se aplicável). |
+| cpf | texto | CPF do cliente ou dependente. |
+| cnpj | texto | CNPJ do cliente ou dependente (se aplicável). |
+| carteira_virtual_status | booleano | Status da carteira virtual: **true** para ativo, **false** para inativo. |
+| planos_contratados | array | Lista de planos contratados pelo cliente ou dependente, contendo os campos abaixo relacionados a cada plano. |
+| id | inteiro | Identificador único do plano contratado. |
+| id_plano | inteiro | Identificador do plano associado (se aplicável). |
+| id_cliente | inteiro | Identificador do cliente. |
+| data_inicio_vigente | data | Data de início da vigência do plano. |
+| data_fim_vigente | data | Data de término da vigência do plano. |
+| carteira_virtual_data_liberacao | data | Data de liberação da carteira virtual (se aplicável). |
+| carteira_virtual_status (plano) | booleano | Status da carteira virtual para o plano: **true** para ativo, **false** para inativo. |
+
+# CNAE
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/cnae/?_limit=1"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/cnae/?_limit=1',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/cnae/?_limit=1', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 1,
+        "count": 534,
+        "sort": null,
+        "requestId": "40e479833661a07cd78fde25da56f98736edf003"
+    },
+    "data": [
+        {
+            "id": 161001,
+            "nome": "Servi\u00e7o de pulveriza\u00e7\u00e3o e controle de pragas agr\u00edcolas"
+        }
+    ]
+}
+```
+
+Lista de códigos de CNAE para serem utilizados no cadastro de serviços.
+
+Essa estrutura está disponível somente para consulta.
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | Chave primária do registro |
+| nome | texto | Nome de exibição |
+
+`GET https://suaempresa.tenex.com.br/api/v2/cnae/`
+
+# Item da Lista de Serviços
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/lista-servicos/?_limit=1"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/lista-servicos/?_limit=1',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/lista-servicos/?_limit=1', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 1,
+        "count": 194,
+        "sort": null,
+        "requestId": "5568296bb4997f8186fe3c5e80994a470e4e1d02"
+    },
+    "data": [
+        {
+            "id": 101,
+            "nome": "An\u00e1lise e desenvolvimento de sistemas."
+        }
+    ]
+}
+```
+
+Item da lista de serviço baseado na lista da [Lei Complementar 116, de 21 de Julho de 2003](http://www.planalto.gov.br/ccivil_03/leis/lcp/lcp116.htm) para serem utilizados no cadastro de Serviços.
+
+Essa estrutura está disponível somente para consulta.
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | Chave primária do registro |
+| nome | texto | Nome de exibição |
+
+`GET https://suaempresa.tenex.com.br/api/v2/lista-servicos/`
+
+# Municípios
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/municipios/?nome\[contains\]=recife"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/municipios/?nome[contains]=recife',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/municipios/?nome[contains]=recife', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 1,
+        "sort": null,
+        "requestId": "8d60ad0ff3dc3601972a5e5fb789324290f47b4d"
+    },
+    "data": [
+        {
+            "id": 2611606,
+            "nome": "Recife (PE)",
+            "uf": 26
+        }
+    ]
+}
+```
+
+Municípios do Brasil com seu código do IBGE.
+
+Essa estrutura está disponível somente para consulta.
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| id | inteiro | Código do município no IBGE |
+| nome | texto | Nome de exibição |
+| uf | inteiro | Código de Unidade Federativa no IBGE (primeiros dois dígitos do código do município): **12** AC **27** AL **13** AM **16** AP **29** BA **23** CE **53** DF **32** ES **52** GO **21** MA **31** MG **50** MS **51** MT **15** PA **25** PB **26** PE **22** PI **41** PR **33** RJ **24** RN **11** RO **14** RR **43** RS **42** SC **28** SE **35** SP **17** TO |
+
+`GET https://suaempresa.tenex.com.br/api/v2/municipios/`
+
+# Índices de Reajustes
+
+```
+curl -u 4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo: \
+    "https://suaempresa.tenex.com.br/api/v2/indices/"
+```
+
+```
+<?php
+require 'vendor/autoload.php';
+
+$apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+$client = new GuzzleHttp\Client();
+$res = $client->request(
+    'GET',
+    'https://suaempresa.tenex.com.br/api/v2/indices/',
+    ['auth' => [$apiKey, '']]
+);
+
+echo $res->getBody();
+```
+
+```
+import requests
+
+apiKey = '4vOqPRfmno5vjHo962ThrdxX8Sv7GnqlilVwOVBvVfo';
+res = requests.get(
+    'https://suaempresa.tenex.com.br/api/v2/indices/', auth=(apiKey, '')
+)
+
+print(res.text)
+```
+
+> O comando acima retornará uma estrutura no seguinte formato:
+
+```
+{
+    "header": {
+        "offset": 0,
+        "limit": 100,
+        "count": 2753,
+        "sort": null,
+        "requestId": "c76421d22102780b4b8b6598c058ffd50259e1c9"
+    },
+    "data": [
+        {
+            "codigo": 188,
+            "sigla": "INPC",
+            "nome": "\u00cdndice nacional de pre\u00e7os ao consumidor",
+            "mes": "1979-04",
+            "valor": 3.45
+        },
+    ...
+}
+```
+
+Retorna todos os dados de Índices de reajuste utilizados no cálculo do Reajuste Automático.
+
+Filtros, paginação e ordenação não são suportados.
+
+Essa estrutura está disponível somente para consulta.
+
+# Webhooks
+
+A funcionalidade de Webhooks permite que se registre servidores que receberão requisições sempre que um registro for Inserido, Alterado ou Excluído na Tenex.
+
+O principal caso de aplicação dos Webhooks são em sistemas que necessitem de notificações.
+
+E possível, por exemplo, sempre que uma venda for Alterada (e.g. recebimento realizado) o disparo seja feito e não haja necessidade de consultar diariamente a situação de Recebimento das Parcelas da Venda.
+
+## Objeto de Webhook
+
+```
+{
+  "header": {
+    "api": "v2",
+    "endpoint": "clientes",
+    "operation": "update",
+    "timestamp": 1662552264,
+    "signature": [
+      "0c18c3fd3828985e4b9ac8893f0e7e85c705fcd9781ca6547f8bb6b16bf13775"
+    ]
+  },
+  "data": {
+    "id": 633,
+    "codigo": 429445822,
+    "data_cadastro": "2022-02-24T13:04:37+00:00",
+    "status": 1,
+    "tipo": 2,
+    "cnpj": null,
+    "nome": "Alana",
+    "razao_social": "Alana",
+    "inscricao_estadual": null,
+    "inscricao_municipal": null,
+    "cpf": "521.350.209-15",
+    "data_nascimento": null,
+    "identidade": null,
+    "genero": null,
+    "obs": null,
+    "cep": "58.052-750",
+    "id_cidade": 2507507,
+    "estado": 25,
+    "endereco": "Rua Exemplo",
+    "numero": "123",
+    "complemento": null,
+    "bairro": "Jardim Cidade Universitária",
+    "cidade": "João Pessoa (PB)"
+  }
+}
+```
+
+### Cabeçalho (header)
+
+Contém metadados relacioanados à chamada feita.
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| api | string | versão da API sendo utilizada (determina o formato dos objetos recebidos) |
+| endpoint | string | estrutura (e.g. clientes ou vendas) recebido |
+| operation | string | operação que aconteceu (_insert_, _update_ ou _delete_) |
+| timestamp | int | timestamp unix de geração |
+| signature | string[] | lista de assinaturas do conteúdo (ver [Assinatura](https://docs.tenex.com.br/api/v2/#validacao-de-assinatura-de-webhook)) |
+
+### Dados (data)
+
+Um objeto no mesmo formato do estrutura correspondente em `GET <api>/endpoint/<ID>` é disponibilizado. Ver [Objeto da Venda](https://docs.tenex.com.br/api/v2/#objeto-da-venda) e [Objeto do Cliente](https://docs.tenex.com.br/api/v2/#objeto-do-cliente).
+
+### Utilização
+
+Para registrar as URL que receberão as chamadas HTTP acesse
+
+`https://suaempresa.tenex.com.br/api-webhook/`
+
+Nessa tela várias URL podem ser registradas para cada Estrutura e Método.
+
+![Image 3: Webhook 1](https://docs.tenex.com.br/api/v2/images/webhook-1-e8cf23da.png)
+
+## Validação de Assinatura de Webhook
+
+O campo `signature` contém a asinatura dos conteúdo da requisição utilizando o método HMAC com algoritmo SHA256.
+
+Para validar a assinatura a entrada `signature` precisa ser removida e um novo hash gerado com o JSON sem formatação.
+
+A Chave Secreta utilizada para assinar as requisições pode ser obtida em `https://suaempresa.tenex.com.br/api-webhook/`.
+
+```
+cat response.json \
+    | jq 'del(.header.signature)' -rc \
+    | hmac256 1313249bc0f6ed48e6e8ea2bade9efab17e2dcb33440257752675bcc69ef3db0
+```
+
+```
+<?php
+
+$secretKey = "1313249bc0f6ed48e6e8ea2bade9efab17e2dcb33440257752675bcc69ef3db0";
+$request = json_decode("{...}", true);
+$signature = $request["header"]["signature"];
+unset($request["header"]["signature"]);
+
+$signatureCheck = hash_hmac("sha256", json_encode($request), $secretKey);
+
+var_dump($signature);
+var_dump($signatureCheck);
+var_dump($signature[0] === $signatureCheck);
+```
+
+```
+import hashlib
+import hmac
+import json
+
+payload = json.loads('{...}')
+
+signature = payload["header"].pop("signature")
+
+secret = '1313249bc0f6ed48e6e8ea2bade9efab17e2dcb33440257752675bcc69ef3db0'
+signatureCheck = hmac.new(bytes(secret, 'utf-8'), bytes(json.dumps(payload), 'utf-8'), hashlib.sha256).hexdigest()
+
+print(signature)
+print(signatureCheck)
+print(signature[0] == signatureCheck)
+```
+
+[shell](https://docs.tenex.com.br/api/v2/#)[php](https://docs.tenex.com.br/api/v2/#)[python](https://docs.tenex.com.br/api/v2/#)

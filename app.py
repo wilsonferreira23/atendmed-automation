@@ -1337,6 +1337,137 @@ async def cancelar_por_cpf(
     }
 
 # ============================================================
+# INCLUIR – MANUAL POR CPF (via painel)
+# ============================================================
+@app.post("/incluir-por-cpf")
+async def incluir_por_cpf(
+    cpf: str = Query(..., description="CPF do paciente (com ou sem máscara)"),
+    loginUser: str = Query("PAINEL WEB")
+):
+    """Inclui um cliente na Medicar buscando o plano atual no Tenex."""
+    cpf_digits = only_digits(cpf)
+    if len(cpf_digits) != 11:
+        return {"status": "erro", "mensagem": "CPF inválido. Informe 11 dígitos."}
+
+    log.info(f"[INCLUIR MANUAL] CPF={cpf_digits} solicitado por {loginUser}")
+
+    # 1) Token Medicar
+    try:
+        token = await medicar_get_token()
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"Erro ao obter token Medicar: {e}"}
+
+    # 2) Buscar carteira-virtual no Tenex
+    try:
+        carteira = await tenex_get_carteira(cpf_digits)
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"Erro ao consultar Tenex: {e}"}
+
+    if not isinstance(carteira, list) or not carteira:
+        return {"status": "ignorado", "mensagem": "CPF não encontrado no Tenex"}
+
+    titular = next((p for p in carteira if only_digits(p.get("cpf", "")) == cpf_digits), carteira[0])
+    nome = titular.get("nome") or ""
+
+    # 3) Verificar plano qualificado e ativo
+    planos = titular.get("planos_contratados", [])
+    id_plano = None
+    plano_cfg = None
+    for p in planos:
+        pid = p.get("id_plano")
+        ativo = p.get("carteira_virtual_status", False)
+        if pid and ativo and PLAN_MAPPING_JSON.get(str(pid)):
+            id_plano = pid
+            plano_cfg = PLAN_MAPPING_JSON[str(pid)]
+            break
+
+    if not id_plano:
+        db_registrar_operacao(
+            tipo="inclusao", status="ignorado", cpf=cpf_digits, nome=nome,
+            mensagem="Nenhum plano qualificado (31/32) ativo encontrado no Tenex",
+            origem=loginUser
+        )
+        return {"status": "ignorado", "cpf": cpf_digits, "nome": nome,
+                "mensagem": "Nenhum plano qualificado (31/32) ativo encontrado no Tenex"}
+
+    log.info(f"[INCLUIR MANUAL] Plano {id_plano} qualificado para {nome}")
+
+    # 4) Verificar se já existe matrícula ativa na Medicar
+    try:
+        resp_mat = await httpx_retry("GET", f"{MEDICAR_BASE_URL}/client/v1/contract",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "cnpjmedicar": MEDICAR_CNPJMEDICAR,
+                "grupoempresa": MEDICAR_GRUPOEMPRESA,
+                "contrato": MEDICAR_CONTRATO,
+                "cgcbeneficiario": cpf_digits,
+            })
+        if resp_mat.json().get("BBA_MATRIC"):
+            db_registrar_operacao(
+                tipo="inclusao", status="ignorado", cpf=cpf_digits, nome=nome,
+                mensagem="Cliente já possui matrícula ativa na Medicar",
+                origem=loginUser
+            )
+            return {"status": "ignorado", "cpf": cpf_digits, "nome": nome,
+                    "mensagem": "Cliente já possui matrícula ativa na Medicar"}
+    except Exception:
+        pass  # se falhar na verificação, prossegue tentando incluir
+
+    # 5) Montar item no formato esperado por process_novo_cliente_item
+    dados_titular = {
+        "cpf": titular.get("cpf"),
+        "nome": nome,
+        "data_nascimento": titular.get("data_nascimento"),
+        "genero": titular.get("genero"),
+    }
+    # Busca dados complementares (email, telefone) pelo id_cliente se disponível
+    id_cliente_tenex = titular.get("id_cliente") or planos[0].get("id_cliente") if planos else None
+    if id_cliente_tenex:
+        try:
+            cli_full = await tenex_get_cliente_com_contatos(int(id_cliente_tenex))
+            if cli_full:
+                dados_titular.update({k: cli_full.get(k) for k in ("data_nascimento","genero","cep","endereco","numero","bairro","cidade","id_cidade","estado") if cli_full.get(k)})
+        except Exception:
+            pass
+
+    fake_item = {
+        "header": {"operation": "insert", "endpoint": "clientes"},
+        "data": {"id": id_cliente_tenex or 0, **dados_titular}
+    }
+
+    # 6) Registra como processando e inclui
+    id_op = db_registrar_operacao(
+        tipo="inclusao", status="processando", cpf=cpf_digits, nome=nome,
+        mensagem=f"Inclusão manual — plano {id_plano}", origem=loginUser
+    )
+
+    try:
+        tenantid = TENANT_ID
+        contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
+        res = await process_novo_cliente_item(fake_item, token, tenantid, contract_fields)
+        status = res.get("status")
+        msg = res.get("motivo") or res.get("erro") or "Incluído com sucesso"
+        db_atualizar_operacao(
+            id_op=id_op, status=status,
+            nome=res.get("nome_titular"),
+            id_plano=res.get("id_plano"),
+            dependentes=res.get("dependentes_nomes"),
+            mensagem=f"[MANUAL] {msg}"
+        )
+        return {
+            "status": status,
+            "cpf": cpf_digits,
+            "nome": res.get("nome_titular") or nome,
+            "id_plano": res.get("id_plano"),
+            "mensagem": msg,
+            "dependentes": res.get("dependentes_nomes")
+        }
+    except Exception as e:
+        db_atualizar_operacao(id_op, "erro", mensagem=f"[MANUAL] Erro: {e}")
+        return {"status": "erro", "cpf": cpf_digits, "mensagem": str(e)}
+
+
+# ============================================================
 # HEALTHCHECK
 # ============================================================
 @app.get("/health")
