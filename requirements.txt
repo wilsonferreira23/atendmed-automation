@@ -5,3 +5,4 @@ tenacity
 httpx
 aiofiles
 python-multipart
+psycopg2-binary

@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Request, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import os, json, logging, asyncio, re, sqlite3
+import os, json, logging, asyncio, re
 import httpx
+import psycopg2
+import psycopg2.extras
+from psycopg2.pool import ThreadedConnectionPool
 from datetime import datetime, timedelta, date
 from contextlib import contextmanager
 from pydantic import BaseModel
@@ -68,31 +71,49 @@ HTTP_TIMEOUT = 25.0
 _token_cache = {"token": None, "expiry": datetime.min}
 
 # ============================================================
-# DB – clientes_excluidos (SQLite simples)
+# DB – PostgreSQL (persistente entre deploys)
 # ============================================================
-DB_PATH = os.getenv("DELETED_DB_PATH", "clientes_excluidos.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+# Pool de conexões: mín 1, máx 10
+_pool: ThreadedConnectionPool | None = None
+
+def get_pool() -> ThreadedConnectionPool:
+    global _pool
+    if _pool is None:
+        if not DATABASE_URL:
+            raise RuntimeError("Variável DATABASE_URL não configurada!")
+        _pool = ThreadedConnectionPool(1, 10, dsn=DATABASE_URL)
+        log.info("✅ Pool PostgreSQL iniciado.")
+    return _pool
 
 @contextmanager
 def get_conn():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    pool = get_pool()
+    conn = pool.getconn()
     try:
+        conn.autocommit = False
         yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
-        conn.close()
+        pool.putconn(conn)
 
 def init_db():
     with get_conn() as conn:
-        conn.execute("""
+        cur = conn.cursor()
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS clientes_excluidos (
-                id_cliente INTEGER PRIMARY KEY,
+                id_cliente BIGINT PRIMARY KEY,
                 cpf TEXT NOT NULL,
                 data_exclusao TEXT NOT NULL
             )
         """)
-        conn.execute("""
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS historico_operacoes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 tipo TEXT NOT NULL,
                 status TEXT NOT NULL,
                 cpf TEXT NOT NULL,
@@ -104,34 +125,39 @@ def init_db():
                 origem TEXT
             )
         """)
-        conn.commit()
+        cur.close()
+    log.info("✅ Tabelas PostgreSQL verificadas/criadas.")
 
 def db_salvar_excluido(id_cliente: int, cpf: str):
     with get_conn() as conn:
-        conn.execute(
+        cur = conn.cursor()
+        cur.execute(
             """
-            INSERT OR REPLACE INTO clientes_excluidos (id_cliente, cpf, data_exclusao)
-            VALUES (?, ?, ?)
+            INSERT INTO clientes_excluidos (id_cliente, cpf, data_exclusao)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (id_cliente) DO UPDATE
+                SET cpf = EXCLUDED.cpf, data_exclusao = EXCLUDED.data_exclusao
             """,
             (id_cliente, cpf, datetime.utcnow().isoformat())
         )
-        conn.commit()
+        cur.close()
 
 def db_buscar_excluido(id_cliente: int):
     with get_conn() as conn:
-        cur = conn.execute(
-            "SELECT id_cliente, cpf, data_exclusao FROM clientes_excluidos WHERE id_cliente = ?",
+        cur = conn.cursor(psycopg2.extras.RealDictCursor)
+        cur.execute(
+            "SELECT id_cliente, cpf, data_exclusao FROM clientes_excluidos WHERE id_cliente = %s",
             (id_cliente,)
         )
         row = cur.fetchone()
-        if row:
-            return dict(row)
-        return None
+        cur.close()
+        return dict(row) if row else None
 
 def db_remover_excluido(id_cliente: int):
     with get_conn() as conn:
-        conn.execute("DELETE FROM clientes_excluidos WHERE id_cliente = ?", (id_cliente,))
-        conn.commit()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM clientes_excluidos WHERE id_cliente = %s", (id_cliente,))
+        cur.close()
 
 def db_registrar_operacao(
     tipo: str,
@@ -145,11 +171,13 @@ def db_registrar_operacao(
 ):
     deps_json = json.dumps(dependentes, ensure_ascii=False) if dependentes else None
     with get_conn() as conn:
-        cur = conn.execute(
+        cur = conn.cursor()
+        cur.execute(
             """
             INSERT INTO historico_operacoes
                 (tipo, status, cpf, nome, id_plano, dependentes, mensagem, data_hora, origem)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (
                 tipo, status, cpf, nome, id_plano,
@@ -157,8 +185,9 @@ def db_registrar_operacao(
                 datetime.utcnow().isoformat(), origem
             )
         )
-        conn.commit()
-        return cur.lastrowid
+        row = cur.fetchone()
+        cur.close()
+        return row[0]
 
 def db_atualizar_operacao(
     id_op: int,
@@ -169,36 +198,43 @@ def db_atualizar_operacao(
     mensagem: str = None
 ):
     deps_json = json.dumps(dependentes, ensure_ascii=False) if dependentes else None
-    fields = ["status = ?"]
+    fields = ["status = %s"]
     params = [status]
     if nome is not None:
-        fields.append("nome = ?")
+        fields.append("nome = %s")
         params.append(nome)
     if id_plano is not None:
-        fields.append("id_plano = ?")
+        fields.append("id_plano = %s")
         params.append(id_plano)
     if dependentes is not None:
-        fields.append("dependentes = ?")
+        fields.append("dependentes = %s")
         params.append(deps_json)
     if mensagem is not None:
-        fields.append("mensagem = ?")
+        fields.append("mensagem = %s")
         params.append(mensagem)
-    
+
     params.append(id_op)
-    
+
     with get_conn() as conn:
-        conn.execute(f"UPDATE historico_operacoes SET {', '.join(fields)} WHERE id = ?", tuple(params))
-        conn.commit()
+        cur = conn.cursor()
+        cur.execute(f"UPDATE historico_operacoes SET {', '.join(fields)} WHERE id = %s", tuple(params))
+        cur.close()
 
 def db_listar_operacoes(tipo: str = "todos", page: int = 1, limit: int = 50) -> dict:
     offset = (page - 1) * limit
+    where = "" if tipo == "todos" else "WHERE tipo = %s"
+    params_count = () if tipo == "todos" else (tipo,)
+    params_rows  = (*params_count, limit, offset)
     with get_conn() as conn:
-        where = "" if tipo == "todos" else f"WHERE tipo = '{tipo}'"
-        count = conn.execute(f"SELECT COUNT(*) FROM historico_operacoes {where}").fetchone()[0]
-        rows = conn.execute(
-            f"SELECT * FROM historico_operacoes {where} ORDER BY id DESC LIMIT ? OFFSET ?",
-            (limit, offset)
-        ).fetchall()
+        cur = conn.cursor(psycopg2.extras.RealDictCursor)
+        cur.execute(f"SELECT COUNT(*) FROM historico_operacoes {where}", params_count)
+        count = cur.fetchone()["count"]
+        cur.execute(
+            f"SELECT * FROM historico_operacoes {where} ORDER BY id DESC LIMIT %s OFFSET %s",
+            params_rows
+        )
+        rows = cur.fetchall()
+        cur.close()
     items = []
     for r in rows:
         d = dict(r)
@@ -210,7 +246,7 @@ def db_listar_operacoes(tipo: str = "todos", page: int = 1, limit: int = 50) -> 
         items.append(d)
     return {"total": count, "page": page, "limit": limit, "items": items}
 
-# inicializa as tabelas na importação
+# Inicializa as tabelas ao subir
 init_db()
 
 # ============================================================
