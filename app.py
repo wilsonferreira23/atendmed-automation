@@ -73,18 +73,22 @@ _token_cache = {"token": None, "expiry": datetime.min}
 # ============================================================
 # DB – PostgreSQL (persistente entre deploys)
 # ============================================================
-DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 # Pool de conexões: mín 1, máx 10
 _pool: ThreadedConnectionPool | None = None
 
 def get_pool() -> ThreadedConnectionPool:
+    """Cria o pool na primeira chamada, lendo DATABASE_URL do ambiente em runtime."""
     global _pool
     if _pool is None:
-        if not DATABASE_URL:
-            raise RuntimeError("Variável DATABASE_URL não configurada!")
-        _pool = ThreadedConnectionPool(1, 10, dsn=DATABASE_URL)
-        log.info("✅ Pool PostgreSQL iniciado.")
+        db_url = os.getenv("DATABASE_URL", "")
+        if not db_url:
+            raise RuntimeError(
+                "DATABASE_URL não configurada! "
+                "Adicione a variável de ambiente no Railway (Settings > Variables)."
+            )
+        _pool = ThreadedConnectionPool(1, 10, dsn=db_url)
+        log.info("✅ Pool PostgreSQL iniciado com sucesso.")
     return _pool
 
 @contextmanager
@@ -246,8 +250,11 @@ def db_listar_operacoes(tipo: str = "todos", page: int = 1, limit: int = 50) -> 
         items.append(d)
     return {"total": count, "page": page, "limit": limit, "items": items}
 
-# Inicializa as tabelas ao subir
-init_db()
+# Inicializa as tabelas ao subir (com proteção para não travar o startup)
+try:
+    init_db()
+except Exception as _init_err:
+    log.error(f"[DB STARTUP] Falha ao criar tabelas: {_init_err} — verifique DATABASE_URL no Railway")
 
 # ============================================================
 # HTTP RETRY
@@ -1544,6 +1551,24 @@ async def health():
     return {"status": "online", "servico": "TENEX → MEDICAR (async)"}
 
 # ============================================================
+# DIAGNÓSTICO DE BANCO
+# ============================================================
+@app.get("/debug/db")
+async def debug_db():
+    """Diagnóstico de conexão com o banco PostgreSQL."""
+    db_url = os.getenv("DATABASE_URL", "")
+    masked = db_url[:30] + "..." if db_url else "(vazio — não configurada!)"
+    try:
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM historico_operacoes")
+            count = cur.fetchone()[0]
+            cur.close()
+        return {"status": "ok", "database_url_prefixo": masked, "registros_historico": count}
+    except Exception as e:
+        return {"status": "erro", "database_url_prefixo": masked, "detalhe": str(e)}
+
+# ============================================================
 # HISTÓRICO DE OPERAÇÕES
 # ============================================================
 @app.get("/api/historico")
@@ -1552,7 +1577,11 @@ async def api_historico(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200)
 ):
-    return db_listar_operacoes(tipo=tipo, page=page, limit=limit)
+    try:
+        return db_listar_operacoes(tipo=tipo, page=page, limit=limit)
+    except Exception as e:
+        log.error(f"[HISTORICO] Erro ao listar: {e}")
+        return {"error": str(e), "total": 0, "page": page, "limit": limit, "items": []}
 
 # ============================================================
 # PAINEL ADMIN (rota raíz)
