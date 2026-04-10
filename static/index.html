@@ -146,6 +146,11 @@
     .card .desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
     .card .field { margin-bottom: 16px; }
     textarea { resize: vertical; min-height: 130px; font-size: 14px; }
+    .dep-group { border-left: 3px solid var(--border); padding-left: 12px; margin-bottom: 12px; position: relative; }
+    .remove-dep { position: absolute; right: 0; top: 0; background: transparent; border: none; color: var(--red); cursor: pointer; font-size: 12px; }
+    .add-dep-btn { background: transparent; border: 1px dashed var(--border); width: 100%; padding: 8px; color: var(--muted); cursor: pointer; border-radius: var(--radius); }
+    .add-dep-btn:hover { border-color: var(--teal); color: var(--teal); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     /* ── RESULTS ── */
     #results-section { display: none; }
@@ -391,40 +396,70 @@
     <!-- ════ ABA INCLUSÕES ════ -->
     <div id="tab-inclusoes" class="tab-content">
       <h1>Inclusões Medicar</h1>
-      <p class="subtitle">Inclua um paciente na Medicar pelo CPF. O sistema busca o plano automaticamente no Tenex.</p>
+      <p class="subtitle">Inclua pacientes na Medicar de forma totalmente manual (bypassa Tenex).</p>
 
       <div class="grid">
         <!-- Card 1: Individual -->
-        <div class="card">
+        <div class="card" style="grid-column: span 2/auto; max-width: 800px;">
           <div class="card-icon">🔵</div>
           <h3>Incluir um Paciente</h3>
-          <p class="desc">Digite o CPF. O sistema verifica o plano ativo no Tenex e inclui na Medicar automaticamente.</p>
-          <div class="field">
-            <label for="cpf-inc-single">CPF do Paciente</label>
-            <input type="text" id="cpf-inc-single" placeholder="000.000.000-00"
-              oninput="formatCPF(this)"
-              onkeydown="if(event.key==='Enter')incluirIndividual()" />
+          <p class="desc">Preencha os dados do titular e dependentes (opcional) para incluir na Medicar.</p>
+          
+          <div id="form-inc-manual">
+            <div class="form-grid">
+              <div class="field">
+                <label>CPF do Titular</label>
+                <input type="text" id="inc-cpf" placeholder="000.000.000-00" oninput="formatCPF(this)" />
+              </div>
+              <div class="field">
+                <label>Nome Completo</label>
+                <input type="text" id="inc-nome" placeholder="Ex: Joao da Silva" />
+              </div>
+              <div class="field">
+                <label>Data de Nascimento</label>
+                <input type="date" id="inc-dn" />
+              </div>
+              <div class="field">
+                <label>Sexo</label>
+                <select id="inc-sexo">
+                  <option value="1">Masculino</option>
+                  <option value="2">Feminino</option>
+                </select>
+              </div>
+              <div class="field" style="grid-column: span 2;">
+                <label>Nome da Mãe</label>
+                <input type="text" id="inc-mae" placeholder="Ex: Maria da Silva" />
+              </div>
+            </div>
+
+            <div style="margin-top:20px; margin-bottom:10px;">
+                <h4 style="font-size:14px; color:var(--muted); margin-bottom:10px;">Dependentes (Opcional)</h4>
+                <div id="deps-container"></div>
+                <button class="add-dep-btn" onclick="addDependenteField()">+ Adicionar Dependente</button>
+            </div>
           </div>
+
           <div id="err-inc-single" class="error-msg"></div>
-          <button id="btn-inc-single" class="btn btn-success" style="width:100%;margin-top:4px;height:44px;font-size:15px;" onclick="incluirIndividual()">
+          <button id="btn-inc-single" class="btn btn-success" style="width:100%;margin-top:10px;height:44px;font-size:15px;" onclick="incluirIndividual()">
             <span class="spinner" id="spin-inc-single"></span>
-            Incluir na Medicar
+            Salvar Titular e Dependentes
           </button>
         </div>
 
         <!-- Card 2: Lote -->
-        <div class="card">
+        <div class="card" style="grid-column: span 2/auto;">
           <div class="card-icon">🔷</div>
-          <h3>Incluir Vários Pacientes</h3>
-          <p class="desc">Cole a lista de CPFs abaixo, um por linha. Cada CPF será verificado e incluído se qualificado.</p>
+          <h3>Incluir Vários Pacientes (Lote CSV via Cola)</h3>
+          <p class="desc">Cole uma tabela/Excel. Cada linha deve ter as colunas abaixo (separadas por Tabulação/Excel ou Ponto e Vírgula).<br/>
+          <b>Colunas (nesta exata ordem):</b> <code>CPF | Nome | Data Nasc (YYYY-MM-DD ou DD/MM/YYYY) | Sexo (M ou F) | Nome da Mãe | CPF do Titular (apenas para dependentes)</code>
+          <br/><small>Nota: Se o campo 'CPF do Titular' for vazio, o registro é tratado como Titular.</small></p>
           <div class="field">
-            <label for="cpf-inc-lote">Lista de CPFs (um por linha)</label>
-            <textarea id="cpf-inc-lote" placeholder="000.000.000-00&#10;111.111.111-11&#10;222.222.222-22"></textarea>
+            <textarea id="cpf-inc-lote" placeholder="Exemplo:&#10;111.111.111-11;João Silva;1980-05-20;M;Maria Silva;"></textarea>
           </div>
           <div id="err-inc-lote" class="error-msg"></div>
           <button id="btn-inc-lote" class="btn btn-success" style="width:100%;margin-top:4px;height:44px;font-size:15px;" onclick="incluirLote()">
             <span class="spinner" id="spin-inc-lote"></span>
-            Incluir Todos
+            Processar Lote
           </button>
         </div>
       </div>
@@ -435,7 +470,6 @@
           <div class="header-left">
             <h3>Resultado das Inclusões</h3>
             <button class="btn btn-outline btn-sm" onclick="exportInclusaoCSV()">⬇ CSV</button>
-            <button class="btn btn-outline btn-sm" onclick="exportInclusaoPDF()">📄 PDF</button>
           </div>
           <div class="summary-pills" id="summary-inc-pills"></div>
         </div>
@@ -447,8 +481,8 @@
                 <th>Nome</th>
                 <th>Situação</th>
                 <th>Plano</th>
-                <th>Dependentes</th>
-                <th>Observação</th>
+                <th>Dependentes Inclusos/Erros</th>
+                <th>Mensagem</th>
               </tr>
             </thead>
             <tbody id="results-inc-body"></tbody>
@@ -730,20 +764,44 @@
 
   async function incluirIndividual() {
     clearError('err-inc-single');
-    const cpf = document.getElementById('cpf-inc-single').value.trim();
-    if (!cpf) return showError('err-inc-single', 'Informe o CPF do paciente.');
+    const cpf = document.getElementById('inc-cpf').value.trim();
+    const nome = document.getElementById('inc-nome').value.trim();
+    const dn = document.getElementById('inc-dn').value;
+    const sexo = document.getElementById('inc-sexo').value;
+    const mae = document.getElementById('inc-mae').value.trim() || 'NOME MAE NAO INFORMADO';
+
+    if (!cpf || !nome || !dn) return showError('err-inc-single', 'Preencha CPF, Nome e Data de Nascimento do titular.');
+
+    // gather dependentes
+    const deps = [];
+    document.querySelectorAll('.dep-group').forEach((el, index) => {
+        const d_cpf = el.querySelector('.d-cpf').value.trim();
+        const d_nome = el.querySelector('.d-nome').value.trim();
+        const d_dn = el.querySelector('.d-dn').value;
+        const d_sexo = el.querySelector('.d-sexo').value;
+        const d_mae = el.querySelector('.d-mae').value.trim() || 'NOME MAE NAO INFORMADO';
+        if (d_cpf || d_nome) {
+            deps.push({ cpf: d_cpf, nome: d_nome, data_nascimento: d_dn, sexo: d_sexo, nome_mae: d_mae });
+        }
+    });
+
+    const payload = { cpf, nome, data_nascimento: dn, sexo, nome_mae: mae, dependentes: deps, loginUser: 'PAINEL WEB' };
+
     setLoading('btn-inc-single', 'spin-inc-single', true);
     try {
-      const params = new URLSearchParams({ cpf, loginUser: 'PAINEL WEB' });
-      const res  = await fetch(`/incluir-por-cpf?${params}`, { method: 'POST' });
+      const res  = await fetch(`/incluir-manual`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+      });
       const data = await res.json();
       renderInclusaoResults([{
-        cpf: data.cpf || cpf.replace(/\D/g,''),
-        nome: data.nome || '—',
+        cpf: data.cpf || payload.cpf.replace(/\D/g,''),
+        nome: data.nome_titular || payload.nome,
         status: data.status,
         id_plano: data.id_plano,
-        dependentes: data.dependentes,
-        mensagem: data.mensagem || ''
+        dependentes: data.dependentes_mensagens || '',
+        mensagem: data.mensagem || data.erro || ''
       }]);
     } catch (e) {
       showError('err-inc-single', 'Não foi possível conectar ao sistema. Tente novamente.');
@@ -755,32 +813,112 @@
   async function incluirLote() {
     clearError('err-inc-lote');
     const raw = document.getElementById('cpf-inc-lote').value.trim();
-    if (!raw) return showError('err-inc-lote', 'Informe ao menos um CPF.');
-    const cpfs = raw.split(/[\n,;]+/).map(c => c.trim()).filter(Boolean);
-    if (!cpfs.length) return showError('err-inc-lote', 'Nenhum CPF válido encontrado.');
-    setLoading('btn-inc-lote', 'spin-inc-lote', true);
-
-    // processa sequencialmente para não sobrecarregar
-    const results = [];
-    for (const cpf of cpfs) {
-      try {
-        const params = new URLSearchParams({ cpf, loginUser: 'PAINEL WEB' });
-        const res  = await fetch(`/incluir-por-cpf?${params}`, { method: 'POST' });
-        const data = await res.json();
-        results.push({
-          cpf: data.cpf || cpf.replace(/\D/g,''),
-          nome: data.nome || '—',
-          status: data.status,
-          id_plano: data.id_plano,
-          dependentes: data.dependentes,
-          mensagem: data.mensagem || ''
-        });
-      } catch(e) {
-        results.push({ cpf: cpf.replace(/\D/g,''), nome: '—', status: 'erro', mensagem: 'Erro de conexão' });
-      }
+    if (!raw) return showError('err-inc-lote', 'Cole os dados do lote.');
+    
+    // Parse CSV/TSV
+    const rows = raw.split(/[\r\n]+/).filter(r => r.trim());
+    if(!rows.length) return;
+    
+    const parsed = [];
+    for(const row of rows){
+        // allow tab or semicolon separator
+        const cols = row.split(/\t|;/).map(c=>c.trim());
+        if(cols.length < 5) continue;
+        const [cpf, nome, dn, sexo, mae, cpfTit] = cols;
+        let s = (sexo.toUpperCase().startsWith('F') || sexo ==='2') ? '2' : '1';
+        parsed.push({cpf, nome, data_nascimento: dn, sexo: s, nome_mae: mae || 'NOME MAE NAO INFORMADO', cpfTit: cpfTit || ''});
     }
-    renderInclusaoResults(results);
-    setLoading('btn-inc-lote', 'spin-inc-lote', false);
+    
+    if(parsed.length === 0) return showError('err-inc-lote', 'Nenhuma linha válida encontrada no lote.');
+    
+    // agrupar
+    const titularesMap = {};
+    const depsQueue = [];
+    
+    parsed.forEach(p => {
+        if (!p.cpfTit) {
+            titularesMap[p.cpf.replace(/\D/g,'')] = {
+                cpf: p.cpf, nome: p.nome, data_nascimento: p.data_nascimento, sexo: p.sexo, nome_mae: p.nome_mae, dependentes: []
+            };
+        } else {
+            depsQueue.push(p);
+        }
+    });
+    
+    depsQueue.forEach(d => {
+        const t_cpf = d.cpfTit.replace(/\D/g,'');
+        if(titularesMap[t_cpf]){
+            titularesMap[t_cpf].dependentes.push({
+                cpf: d.cpf, nome: d.nome, data_nascimento: d.data_nascimento, sexo: d.sexo, nome_mae: d.nome_mae
+            });
+        }
+    });
+
+    const titulares = Object.values(titularesMap);
+    if(titulares.length === 0) return showError('err-inc-lote', 'Nenhum titular encontrado (todas as linhas tinham CPF Titular preenchido?).');
+
+    setLoading('btn-inc-lote', 'spin-inc-lote', true);
+    try {
+        const res = await fetch('/incluir-manual-lote', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ titulares, loginUser: 'PAINEL WEB' })
+        });
+        const data = await res.json();
+        if(data.resultados){
+            // map back to view model
+            const viewItems = data.resultados.map(r => ({
+                cpf: r.cpf,
+                nome: r.nome_titular,
+                status: r.status,
+                id_plano: r.id_plano,
+                dependentes: r.dependentes_mensagens || '',
+                mensagem: r.mensagem || r.erro || ''
+            }));
+            renderInclusaoResults(viewItems);
+        }
+    } catch(e) {
+        showError('err-inc-lote', 'Não foi possível conectar ao sistema. Tente novamente.');
+    } finally {
+        setLoading('btn-inc-lote', 'spin-inc-lote', false);
+    }
+  }
+
+  let depIdCounter = 0;
+  function addDependenteField() {
+      const container = document.getElementById('deps-container');
+      const id = depIdCounter++;
+      const html = `
+        <div class="dep-group" id="dep-${id}">
+            <button class="remove-dep" onclick="document.getElementById('dep-${id}').remove()">✕ Remover</button>
+            <div class="form-grid">
+              <div class="field">
+                <label>CPF</label>
+                <input type="text" class="d-cpf" placeholder="000.000.000-00" oninput="formatCPF(this)" />
+              </div>
+              <div class="field">
+                <label>Nome Completo</label>
+                <input type="text" class="d-nome" placeholder="Ex: Filho da Silva" />
+              </div>
+              <div class="field">
+                <label>Data de Nasc.</label>
+                <input type="date" class="d-dn" />
+              </div>
+              <div class="field">
+                <label>Sexo</label>
+                <select class="d-sexo">
+                  <option value="1">Masculino</option>
+                  <option value="2">Feminino</option>
+                </select>
+              </div>
+              <div class="field" style="grid-column: span 2;">
+                <label>Nome da Mãe</label>
+                <input type="text" class="d-mae" placeholder="Ex: Maria da Silva" />
+              </div>
+            </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', html);
   }
 
   // ── HISTÓRICO ──
