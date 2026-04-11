@@ -148,7 +148,7 @@ def db_salvar_excluido(id_cliente: int, cpf: str):
 
 def db_buscar_excluido(id_cliente: int):
     with get_conn() as conn:
-        cur = conn.cursor(psycopg2.extras.RealDictCursor)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(
             "SELECT id_cliente, cpf, data_exclusao FROM clientes_excluidos WHERE id_cliente = %s",
             (id_cliente,)
@@ -230,7 +230,7 @@ def db_listar_operacoes(tipo: str = "todos", page: int = 1, limit: int = 50) -> 
     params_count = () if tipo == "todos" else (tipo,)
     params_rows  = (*params_count, limit, offset)
     with get_conn() as conn:
-        cur = conn.cursor(psycopg2.extras.RealDictCursor)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(f"SELECT COUNT(*) FROM historico_operacoes {where}", params_count)
         count = cur.fetchone()["count"]
         cur.execute(
