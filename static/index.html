@@ -396,7 +396,29 @@
     <!-- ════ ABA INCLUSÕES ════ -->
     <div id="tab-inclusoes" class="tab-content">
       <h1>Inclusões Medicar</h1>
-      <p class="subtitle">Inclua pacientes na Medicar de forma totalmente manual (bypassa Tenex).</p>
+      <p class="subtitle">Inclua pacientes na Medicar de forma manual ou buscando pelo CPF do Tenex.</p>
+
+      <div class="grid">
+        <!-- Card 0: Por CPF Tenex -->
+        <div class="card">
+          <div class="card-icon">🔍</div>
+          <h3>Incluir por CPF (Tenex)</h3>
+          <p class="desc">Informe apenas o CPF. O sistema busca automaticamente os dados do cliente e dependentes no Tenex e faz a inclusão na Medicar.</p>
+          <div class="field">
+            <label for="inc-cpf-tenex">CPF do Paciente</label>
+            <input type="text" id="inc-cpf-tenex" placeholder="000.000.000-00" oninput="formatCPF(this)" onkeydown="if(event.key==='Enter')incluirPorCPF()" />
+          </div>
+          <div id="err-inc-cpf" class="error-msg"></div>
+          <div id="ok-inc-cpf" style="display:none; background:rgba(46,196,165,.08); border:1px solid rgba(46,196,165,.3); color:#1a8c77; border-radius:8px; padding:12px 16px; font-size:13px; margin-top:10px;"></div>
+          <button id="btn-inc-cpf" class="btn btn-success" style="width:100%;margin-top:12px;height:44px;font-size:15px;" onclick="incluirPorCPF()">
+            <span class="spinner" id="spin-inc-cpf"></span>
+            Buscar e Incluir
+          </button>
+        </div>
+
+        <!-- Card placeholder to keep grid balanced -->
+        <div style="display:contents;"></div>
+      </div>
 
       <div class="grid">
         <!-- Card 1: Individual -->
@@ -522,6 +544,10 @@
             <option value="erro">Erro</option>
             <option value="ignorado">Ignorado</option>
           </select>
+        </div>
+        <div class="filter-group" style="flex:1; min-width:180px;">
+          <label>Buscar</label>
+          <input type="text" id="hist-busca" placeholder="Nome ou CPF..." oninput="filtrarHistoricoLocal()" style="height:36px;" />
         </div>
         <div style="margin-left:auto; display:flex; gap:8px;">
           <button class="btn btn-outline btn-sm" onclick="exportHistoricoCSV()">⬇ CSV</button>
@@ -919,6 +945,51 @@
         </div>
       `;
       container.insertAdjacentHTML('beforeend', html);
+  }
+
+  // ── INCLUIR POR CPF TENEX ──
+  async function incluirPorCPF() {
+    clearError('err-inc-cpf');
+    document.getElementById('ok-inc-cpf').style.display = 'none';
+    const cpf = document.getElementById('inc-cpf-tenex').value.trim();
+    if (!cpf) return showError('err-inc-cpf', 'Informe o CPF do paciente.');
+    setLoading('btn-inc-cpf', 'spin-inc-cpf', true);
+    try {
+      const res = await fetch('/incluir-por-cpf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cpf, loginUser: 'PAINEL WEB' })
+      });
+      const data = await res.json();
+      if (data.status === 'erro') {
+        showError('err-inc-cpf', data.mensagem || 'Erro ao processar.');
+      } else {
+        const okEl = document.getElementById('ok-inc-cpf');
+        okEl.innerHTML = `✅ ${data.mensagem}`;
+        okEl.style.display = 'block';
+        document.getElementById('inc-cpf-tenex').value = '';
+        // Redireciona para histórico após 2s
+        setTimeout(() => switchTab('historico', document.querySelectorAll('.tab-btn')[2]), 2000);
+      }
+    } catch (e) {
+      showError('err-inc-cpf', 'Não foi possível conectar ao sistema. Tente novamente.');
+    } finally {
+      setLoading('btn-inc-cpf', 'spin-inc-cpf', false);
+    }
+  }
+
+  // ── FILTRO LOCAL DO HISTÓRICO ──
+  function filtrarHistoricoLocal() {
+    const termo = (document.getElementById('hist-busca').value || '').toLowerCase().trim();
+    const status = document.getElementById('hist-status').value;
+    let items = histData;
+    if (status !== 'todos') items = items.filter(r => r.status === status);
+    if (termo) items = items.filter(r =>
+      (r.nome || '').toLowerCase().includes(termo) ||
+      (r.cpf || '').replace(/\D/g,'').includes(termo.replace(/\D/g,'')) ||
+      (r.cpf || '').toLowerCase().includes(termo)
+    );
+    renderHistorico(items, items.length);
   }
 
   // ── HISTÓRICO ──

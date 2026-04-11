@@ -1544,8 +1544,92 @@ async def incluir_manual_lote(req: InclusaoManualLoteRequest):
     return {"resultados": resultados}
 
 # ============================================================
-# HEALTHCHECK
+# INCLUIR POR CPF (busca cliente no Tenex e inclui na Medicar)
 # ============================================================
+@app.post("/incluir-por-cpf")
+async def incluir_por_cpf(payload: dict, bg_tasks: BackgroundTasks):
+    """
+    Recebe um CPF, busca o cliente no Tenex pela carteira-virtual,
+    monta o item no mesmo formato do webhook e processa via background.
+    """
+    cpf_raw = payload.get("cpf", "")
+    login_user = payload.get("loginUser", "PAINEL WEB")
+    cpf_digits = only_digits(cpf_raw)
+
+    if len(cpf_digits) != 11:
+        return {"status": "erro", "mensagem": "CPF inválido. Informe 11 dígitos."}
+
+    log.info(f"[INCLUIR POR CPF] Iniciando busca no Tenex para CPF={cpf_digits}")
+
+    # 1) Buscar plano/cliente na carteira virtual do Tenex
+    try:
+        carteira = await tenex_get_carteira(cpf_digits)
+    except Exception as e:
+        return {"status": "erro", "mensagem": f"Erro ao buscar CPF no Tenex: {e}"}
+
+    # Extrair o id do cliente do resultado da carteira
+    id_cliente = None
+    nome = ""
+    if isinstance(carteira, list) and carteira:
+        id_cliente = carteira[0].get("id") or carteira[0].get("id_cliente")
+        nome = carteira[0].get("nome") or carteira[0].get("razao_social") or ""
+    elif isinstance(carteira, dict):
+        id_cliente = carteira.get("id") or carteira.get("id_cliente")
+        nome = carteira.get("nome") or carteira.get("razao_social") or ""
+
+    if not id_cliente:
+        # Tenta buscar diretamente na API de clientes pelo CPF
+        try:
+            url = f"{TENEX_BASE_URL}/api/v2/clientes/?cpf={cpf_digits}&_expand=contatos"
+            headers = {"Authorization": f"Basic {TENEX_BASIC_AUTH}"}
+            import httpx as _httpx
+            async with _httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+                resp = await client.get(url, headers=headers)
+                resp.raise_for_status()
+                clientes_data = resp.json()
+                if isinstance(clientes_data, dict) and "data" in clientes_data:
+                    clientes_data = clientes_data["data"]
+                if clientes_data:
+                    id_cliente = clientes_data[0].get("id")
+                    nome = clientes_data[0].get("nome") or clientes_data[0].get("razao_social") or ""
+        except Exception as e:
+            log.warning(f"[INCLUIR POR CPF] Busca alternativa falhou: {e}")
+
+    if not id_cliente:
+        return {"status": "erro", "mensagem": f"CPF {cpf_digits} não encontrado no Tenex. Verifique se o cliente está cadastrado."}
+
+    log.info(f"[INCLUIR POR CPF] Cliente encontrado: ID={id_cliente}, nome={nome}")
+
+    # 2) Registra operação como "processando"
+    id_op = db_registrar_operacao(
+        tipo="inclusao", status="processando", cpf=cpf_digits, nome=nome,
+        mensagem=f"Inclusão via CPF — buscando dados completos no Tenex (ID {id_cliente})...",
+        origem=login_user
+    )
+
+    # 3) Monta o item no formato esperado pelo process_novo_cliente_bg
+    item = {
+        "header": {"operation": "insert"},
+        "data": {
+            "id": id_cliente,
+            "cpf": cpf_raw or cpf_digits,
+            "nome": nome,
+            "status": 1
+        }
+    }
+
+    # 4) Lança em background (mesmo fluxo do webhook)
+    bg_tasks.add_task(process_novo_cliente_bg, item, id_op)
+
+    return {
+        "status": "processando",
+        "mensagem": f"Cliente {nome or cpf_digits} encontrado (ID Tenex: {id_cliente}). Inclusão iniciada em background — acompanhe no Histórico.",
+        "cpf": cpf_digits,
+        "id_tenex": id_cliente,
+        "id_operacao": id_op
+    }
+
+
 @app.get("/health")
 async def health():
     return {"status": "online", "servico": "TENEX → MEDICAR (async)"}
