@@ -47,7 +47,8 @@ def valid_date_or_today(s: str | None) -> str:
 # ============================================================
 # CONFIG
 # ============================================================
-TENEX_BASE_URL = os.getenv("TENEX_BASE_URL", "https://maisaudebh.tenex.com.br").rstrip("/")
+# TENEX_BASE_URL — obrigatório, sem valor padrão para evitar apontar para clínica errada
+TENEX_BASE_URL = os.getenv("TENEX_BASE_URL", "").rstrip("/")
 TENEX_BASIC_AUTH = os.getenv("TENEX_BASIC_AUTH")
 
 MEDICAR_BASE_URL = os.getenv("MEDICAR_BASE_URL", "").rstrip("/")
@@ -66,6 +67,15 @@ PLAN_MAPPING_JSON = json.loads(os.getenv(
     "PLAN_MAPPING_JSON",
     '{"31":{"codpro":"0066","versao":"001"},"32":{"codpro":"0066","versao":"001"}}'
 ))
+
+# Plano padrão para inclusões manuais (pode ser sobrescrito por clínica via env)
+MEDICAR_PLANO_PADRAO = json.loads(os.getenv(
+    "MEDICAR_PLANO_PADRAO_JSON",
+    '{"codpro": "0066", "versao": "001"}'
+))
+
+# Senha de acesso ao painel web (cada instância/clínica pode ter a sua)
+PAINEL_SENHA = os.getenv("PAINEL_SENHA", "med123")
 
 HTTP_TIMEOUT = 25.0
 _token_cache = {"token": None, "expiry": datetime.min}
@@ -1426,8 +1436,8 @@ async def incluir_manual(req: InclusaoManualRequest):
 
     contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
     
-    # Plano padrão: 0066 / 001
-    plano = {"codpro": "0066", "versao": "001"}
+    # Plano padrão lido da variável de ambiente MEDICAR_PLANO_PADRAO_JSON
+    plano = MEDICAR_PLANO_PADRAO
 
     titular_dict = {
         "cpf": cpf_digits,
@@ -1493,7 +1503,7 @@ async def incluir_manual_lote(req: InclusaoManualLoteRequest):
             pass
 
     contract_fields = json.loads(MEDICAR_CONTRACT_FIELDS_JSON) if MEDICAR_CONTRACT_FIELDS_JSON else None
-    plano = {"codpro": "0066", "versao": "001"}
+    plano = MEDICAR_PLANO_PADRAO
 
     for titular in req.titulares:
         cpf_digits = only_digits(titular.cpf)
@@ -1633,6 +1643,14 @@ async def incluir_por_cpf(payload: dict, bg_tasks: BackgroundTasks):
 @app.get("/health")
 async def health():
     return {"status": "online", "servico": "TENEX → MEDICAR (async)"}
+
+# ============================================================
+# CONFIG DO PAINEL (expõe configurações seguras para o frontend)
+# ============================================================
+@app.get("/api/config")
+async def api_config():
+    """Expõe configurações não-sensíveis para o painel web."""
+    return {"senha": PAINEL_SENHA}
 
 # ============================================================
 # DIAGNÓSTICO DE BANCO

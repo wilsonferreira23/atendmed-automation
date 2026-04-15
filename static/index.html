@@ -592,7 +592,7 @@
 </div><!-- /app -->
 
 <script>
-  const SENHA = 'med123';
+  let SENHA = null; // carregada do backend via /api/config
   let currentResults = [];
   let currentInclusaoResults = [];
   let histPage = 1;
@@ -600,8 +600,13 @@
   let histData = [];
   const HIST_LIMIT = 50;
 
+  // Carrega a senha do backend ao iniciar
+  fetch('/api/config').then(r => r.json()).then(cfg => { SENHA = cfg.senha; }).catch(() => { SENHA = 'med123'; });
+
   // ── AUTH ──
   function doLogin() {
+    if (!SENHA) { const e = document.getElementById('login-error'); e.textContent = 'Aguarde, carregando...'; e.style.display = 'block'; return; }
+
     if (document.getElementById('senha').value === SENHA) {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('app').style.display = 'flex';
