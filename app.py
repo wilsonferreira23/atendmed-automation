@@ -77,6 +77,9 @@ MEDICAR_PLANO_PADRAO = json.loads(os.getenv(
 # Senha de acesso ao painel web (cada instância/clínica pode ter a sua)
 PAINEL_SENHA = os.getenv("PAINEL_SENHA", "med123")
 
+# URL da logo exibida no painel (opcional — se vazio usa a logo padrão AtendMed)
+PAINEL_LOGO_URL = os.getenv("PAINEL_LOGO_URL", "")
+
 HTTP_TIMEOUT = 25.0
 _token_cache = {"token": None, "expiry": datetime.min}
 
@@ -1650,7 +1653,7 @@ async def health():
 @app.get("/api/config")
 async def api_config():
     """Expõe configurações não-sensíveis para o painel web."""
-    return {"senha": PAINEL_SENHA}
+    return {"senha": PAINEL_SENHA, "logo_url": PAINEL_LOGO_URL}
 
 # ============================================================
 # DIAGNÓSTICO DE BANCO
