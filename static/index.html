@@ -1188,6 +1188,7 @@
     // Carrega a senha e a logo do backend ao iniciar
     fetch('/api/config').then(r => r.json()).then(cfg => {
       SENHA = cfg.senha;
+      if (cfg.titulo) document.title = cfg.titulo;
       if (cfg.logo_url) {
         const imgTag = `<img src="${cfg.logo_url}" alt="Logo" style="max-height:48px;width:auto;">` ;
         const imgTagNav = `<img src="${cfg.logo_url}" alt="Logo" style="max-height:28px;width:auto;">` ;
@@ -1195,6 +1196,7 @@
         document.getElementById('nav-logo').innerHTML = imgTagNav;
       }
     }).catch(() => { SENHA = 'med123'; });
+
 
     // ── AUTH ──
     function doLogin() {

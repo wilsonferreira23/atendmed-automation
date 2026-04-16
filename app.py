@@ -80,6 +80,9 @@ PAINEL_SENHA = os.getenv("PAINEL_SENHA", "med123")
 # URL da logo exibida no painel (opcional — se vazio usa a logo padrão AtendMed)
 PAINEL_LOGO_URL = os.getenv("PAINEL_LOGO_URL", "")
 
+# Título exibido na aba do navegador (se vazio usa o padrão)
+PAINEL_TITULO = os.getenv("PAINEL_TITULO", "AtendMed BH – Centro de Controle Medicar")
+
 HTTP_TIMEOUT = 25.0
 _token_cache = {"token": None, "expiry": datetime.min}
 
@@ -1653,7 +1656,7 @@ async def health():
 @app.get("/api/config")
 async def api_config():
     """Expõe configurações não-sensíveis para o painel web."""
-    return {"senha": PAINEL_SENHA, "logo_url": PAINEL_LOGO_URL}
+    return {"senha": PAINEL_SENHA, "logo_url": PAINEL_LOGO_URL, "titulo": PAINEL_TITULO}
 
 # ============================================================
 # DIAGNÓSTICO DE BANCO
