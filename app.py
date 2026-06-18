@@ -277,7 +277,7 @@ except Exception as _init_err:
 # ============================================================
 async def httpx_retry(method: str, url: str, **kwargs) -> httpx.Response:
     tries, delay = 3, 1.0
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=True) as client:
         for i in range(tries):
             try:
                 resp = await client.request(method, url, **kwargs)
@@ -320,7 +320,7 @@ async def medicar_get_token():
     url = f"{MEDICAR_BASE_URL}/api/oauth2/v1/token"
     params = {"grant_type": "password", "username": MEDICAR_USERNAME, "password": MEDICAR_PASSWORD}
 
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=True) as client:
         resp = await client.post(url, params=params)
         resp.raise_for_status()
 
